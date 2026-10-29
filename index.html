@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>合成大西瓜 3D — Synthetic Big Watermelon 3D</title>
+  <link rel="icon" href="data:,">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    [hidden] {
+      display: none !important;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fff4e0;
+      font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      touch-action: none;
+    }
+    #game-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 1;
+      touch-action: none;
+    }
+
+    /* Non-interactive status banners & badges */
+    .non-interactive {
+      pointer-events: none;
+    }
+
+    /* Gameplay HUD: strictly 6 clickable buttons (3 top-right, 3 bottom-center), each >= 72x72px */
+    #gameplay-hud {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .hud-top-bar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .hud-score-card {
+      background: rgba(255, 251, 235, 0.92);
+      border: 3px solid #f59e0b;
+      border-radius: 18px;
+      padding: 6px 12px;
+      box-shadow: 0 6px 16px rgba(180, 83, 9, 0.18);
+      color: #78350f;
+      min-width: 112px;
+    }
+    .score-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #b45309;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .score-num {
+      font-size: 24px;
+      font-weight: 900;
+      color: #d97706;
+      line-height: 1.1;
+    }
+    .score-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: #92400e;
+      margin-top: 2px;
+    }
+    .hud-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .hud-btn {
+      pointer-events: auto;
+      min-width: 72px;
+      min-height: 72px;
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      border: 3px solid #f59e0b;
+      background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+      color: #78350f;
+      font-weight: 900;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #d97706, 0 8px 14px rgba(0, 0, 0, 0.16);
+      padding: 4px;
+      position: relative;
+      transition: transform 0.08s ease;
+    }
+    .hud-btn:active {
+      transform: translateY(3px);
+    }
+    .hud-btn .btn-icon {
+      font-size: 24px;
+      line-height: 1;
+    }
+    .hud-btn .btn-txt {
+      font-size: 12px;
+      line-height: 1.1;
+    }
+    .hud-btn.tool-armed {
+      background: linear-gradient(180deg, #fecdd3 0%, #fda4af 100%);
+      border-color: #e11d48;
+      box-shadow: 0 5px 0 #be123c, 0 0 18px rgba(225, 29, 72, 0.55);
+    }
+    .tool-count {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #16a34a;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 900;
+      min-width: 22px;
+      height: 22px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ffffff;
+      pointer-events: none;
+    }
+
+    /* Center Status Banners (Combo / Warning / Hammer Tip) */
+    .hud-banners {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .status-pill {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .combo-pill {
+      background: linear-gradient(90deg, #f97316, #eab308);
+      color: #ffffff;
+      border: 2px solid #ffffff;
+    }
+    .warning-pill {
+      background: #ef4444;
+      color: #ffffff;
+      border: 2px solid #fef08a;
+    }
+    .hammer-pill {
+      background: #2563eb;
+      color: #ffffff;
+      border: 2px solid #bfdbfe;
+    }
+
+    /* Bottom Power-Up Tool Dock */
+    .hud-bottom-dock {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+    }
+
+    /* Title & Podium Overlays — compact cards keeping the 3D scene front-and-center */
+    .overlay-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px;
+      pointer-events: none;
+    }
+    .title-banner-card {
+      background: rgba(255, 251, 235, 0.94);
+      border: 4px solid #f59e0b;
+      border-radius: 24px;
+      padding: 10px 20px;
+      text-align: center;
+      box-shadow: 0 10px 28px rgba(180, 83, 9, 0.22);
+      max-width: 520px;
+    }
+    .title-banner-card h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 900;
+      color: #15803d;
+      text-shadow: 0 2px 0 #dcfce7;
+    }
+    .title-banner-card p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: #92400e;
+    }
+    .overlay-actions-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: auto;
+      background: rgba(255, 251, 235, 0.94);
+      border: 4px solid #f59e0b;
+      border-radius: 26px;
+      padding: 10px 14px;
+      box-shadow: 0 10px 28px rgba(180, 83, 9, 0.24);
+    }
+    .cta-btn {
+      pointer-events: auto;
+      min-width: 112px;
+      min-height: 72px;
+      height: 72px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 3px solid #ffffff;
+      font-size: 16px;
+      font-weight: 900;
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.22), 0 8px 16px rgba(0, 0, 0, 0.18);
+    }
+    .cta-green {
+      background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+    }
+    .cta-orange {
+      background: linear-gradient(180deg, #fb923c 0%, #ea580c 100%);
+    }
+    .cta-gold {
+      background: linear-gradient(180deg, #facc15 0%, #d97706 100%);
+      color: #78350f;
+    }
+
+    @media (max-height: 440px) {
+      .title-banner-card {
+        padding: 6px 14px;
+      }
+      .title-banner-card h1 {
+        font-size: 20px;
+      }
+      .overlay-actions-bar {
+        padding: 6px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas" data-testid="game-canvas"></canvas>
+
+  <!-- Title Screen Overlay (3 buttons >= 72x72px, 3D Jar & QQ Penguin visible in center) -->
+  <section id="title-overlay" class="overlay-screen" data-testid="title-overlay">
+    <div class="title-banner-card non-interactive">
+      <h1>🍉 合成大西瓜 3D</h1>
+      <p>葡萄 → 樱桃 → 橘子 → 柠檬 → 猕猴桃 → 西红柿 → 水蜜桃 → 菠萝 → 椰子 → 半西瓜 → 大西瓜!</p>
+    </div>
+
+    <div class="overlay-actions-bar">
+      <button id="btn-start-classic" class="cta-btn cta-green" data-testid="btn-start-classic" aria-label="开始经典合成">
+        🍉 经典合成
+      </button>
+      <button id="btn-start-rush" class="cta-btn cta-orange" data-testid="btn-start-rush" aria-label="开始限时冲刺">
+        ⚡ 限时冲刺
+      </button>
+      <button id="btn-title-audio" class="cta-btn cta-gold" data-testid="btn-title-audio" aria-label="音乐开关">
+        🔊 音乐开启
+      </button>
+    </div>
+  </section>
+
+  <!-- Active Gameplay HUD (Strictly 6 buttons >= 72x72px, zero overlaps) -->
+  <section id="gameplay-hud" data-testid="gameplay-hud" hidden>
+    <div class="hud-top-bar">
+      <div class="hud-score-card non-interactive">
+        <div class="score-label">
+          <span id="hud-mode-badge">经典合成</span>
+          <span id="hud-timer-badge" hidden>⏳ 02:00</span>
+        </div>
+        <div class="score-num" id="hud-score-value" data-testid="hud-score-value">0</div>
+        <div class="score-sub">
+          最高: <span id="hud-best-value">0</span> · <span id="hud-next-fruit">下一颗: 樱桃</span>
+        </div>
+      </div>
+
+      <div class="hud-top-actions">
+        <button id="hud-btn-mode" class="hud-btn" data-testid="hud-btn-mode" aria-label="切换模式">
+          <span class="btn-icon">⚡</span>
+          <span class="btn-txt">冲刺</span>
+        </button>
+        <button id="hud-btn-audio" class="hud-btn" data-testid="hud-btn-audio" aria-label="声音开关">
+          🔊
+        </button>
+        <button id="hud-btn-home" class="hud-btn" data-testid="hud-btn-home" aria-label="返回主菜单">
+          <span class="btn-icon">🏠</span>
+          <span class="btn-txt">菜单</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="hud-banners non-interactive">
+      <div id="hud-combo-banner" class="status-pill combo-pill" hidden>🔥 连击 Combo x2!</div>
+      <div id="hud-warning-banner" class="status-pill warning-pill" hidden>⚠️ 满杯警戒 2.5s</div>
+      <div id="hud-hammer-banner" class="status-pill hammer-pill" hidden>🔨 点击瓶中任意水果即可敲碎!</div>
+    </div>
+
+    <div class="hud-bottom-dock">
+      <button id="hud-btn-shake" class="hud-btn" data-testid="hud-btn-shake" aria-label="摇一摇">
+        <span class="btn-icon">📳</span>
+        <span class="btn-txt">摇一摇</span>
+        <span id="cnt-shake" class="tool-count">2</span>
+      </button>
+      <button id="hud-btn-hammer" class="hud-btn" data-testid="hud-btn-hammer" aria-label="魔法锤">
+        <span class="btn-icon">🔨</span>
+        <span class="btn-txt">魔法锤</span>
+        <span id="cnt-hammer" class="tool-count">2</span>
+      </button>
+      <button id="hud-btn-rainbow" class="hud-btn" data-testid="hud-btn-rainbow" aria-label="彩虹升级">
+        <span class="btn-icon">🌈</span>
+        <span class="btn-txt">彩虹升级</span>
+        <span id="cnt-rainbow" class="tool-count">2</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 3D Top-3 Star Podium Overlay (2 buttons >= 72x72px, 3D Podium visible in center) -->
+  <section id="podium-overlay" class="overlay-screen" data-testid="podium-overlay" hidden>
+    <div class="title-banner-card non-interactive">
+      <h1 id="podium-title">🍉 合成结算领奖台</h1>
+      <p id="podium-stars-text" style="font-size: 20px; margin: 4px 0;">⭐⭐⭐</p>
+      <p id="podium-rank-badge">🥇 冠军领奖台 (3星满贯!)</p>
+      <p>总分: <strong id="podium-score-value">0</strong> · 合成大西瓜: <strong id="podium-watermelons-value">0</strong> 个</p>
+    </div>
+
+    <div class="overlay-actions-bar">
+      <button id="btn-play-again" class="cta-btn cta-green" data-testid="btn-play-again" aria-label="再来一局">
+        🔄 再来一局
+      </button>
+      <button id="btn-podium-home" class="cta-btn cta-gold" data-testid="btn-podium-home" aria-label="返回主界面">
+        🏠 返回大厅
+      </button>
+    </div>
+  </section>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

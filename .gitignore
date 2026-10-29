@@ -1,0 +1,9 @@
+.agents/
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+*.tmp
+*.log
+.pytest_cache/
+node_modules/
