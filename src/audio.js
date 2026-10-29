@@ -9,17 +9,25 @@
  */
 
 const PENTATONIC_HZ = [
-  261.63, // C4
-  293.66, // D4
-  329.63, // E4
-  392.00, // G4
-  440.00, // A4
-  523.25, // C5
-  587.33, // D5
-  659.25, // E5
-  783.99, // G5
-  880.00, // A5
-  1046.50, // C6
+  261.63, // C4 (tier 0)
+  293.66, // D4 (tier 1)
+  329.63, // E4 (tier 2)
+  392.00, // G4 (tier 3)
+  440.00, // A4 (tier 4)
+  523.25, // C5 (tier 5)
+  587.33, // D5 (tier 6)
+  659.25, // E5 (tier 7)
+  783.99, // G5 (tier 8)
+  880.00, // A5 (tier 9)
+  1046.50, // C6 (tier 10)
+];
+
+export const COMBO_PITCH_NOTES = ['C5', 'E5', 'G5', 'C6'];
+export const COMBO_PITCH_HZ = [
+  523.25, // C5 (x1)
+  659.25, // E5 (x2)
+  783.99, // G5 (x3)
+  1046.50, // C6 (x4+)
 ];
 
 export class WatermelonAudio {
@@ -34,6 +42,13 @@ export class WatermelonAudio {
     this.bgmStep = 0;
     this.bgmTimerId = null;
     this.sfxCount = 0;
+    this.heartbeatCount = 0;
+    this.fanfareCount = 0;
+    this.starSfxCount = 0;
+    this.lastMergeTier = -1;
+    this.lastMergePitchHz = 0;
+    this.lastComboPitchHz = 0;
+    this.lastComboNote = 'C5';
     this.activeNodes = 0;
     this.maxConcurrentNodes = 16;
     this.lastSfxTimeByType = new Map();
@@ -222,44 +237,59 @@ export class WatermelonAudio {
   playMerge(toTier = 1, combo = 1) {
     if (!this._canTriggerSfx(`merge_${toTier}`, 25)) return;
     this.sfxCount += 1;
-    const noteIndex = Math.min(
-        PENTATONIC_HZ.length - 1,
-        Math.max(0, toTier + Math.min(3, combo - 1))
-    );
-    const rootFreq = PENTATONIC_HZ[noteIndex];
+    const clampedTier = Math.min(PENTATONIC_HZ.length - 1, Math.max(0, Math.floor(toTier)));
+    const tierFreq = PENTATONIC_HZ[clampedTier];
+    const comboIdx = Math.min(COMBO_PITCH_HZ.length - 1, Math.max(0, Math.floor(combo) - 1));
+    const comboFreq = COMBO_PITCH_HZ[comboIdx];
 
+    this.lastMergeTier = clampedTier;
+    this.lastMergePitchHz = tierFreq;
+    this.lastComboPitchHz = comboFreq;
+    this.lastComboNote = COMBO_PITCH_NOTES[comboIdx];
+
+    // Base merge pop whose pitch rises monotonically with tier
     this._spawnTone({
-      freq: rootFreq * 0.75,
-      endFreq: rootFreq * 1.25,
+      freq: tierFreq * 0.82,
+      endFreq: tierFreq * 1.28,
       type: 'sine',
-      duration: 0.12,
+      duration: 0.13,
       gain: 0.28,
     });
+    // Escalating combo chime (C5 -> E5 -> G5 -> C6)
     this._spawnTone({
-      freq: rootFreq * 1.5,
-      endFreq: rootFreq * 2.0,
+      freq: comboFreq,
+      endFreq: comboFreq * 1.18,
       type: 'triangle',
       duration: 0.16,
-      delay: 0.05,
-      gain: 0.22,
+      delay: 0.04,
+      gain: combo >= 2 ? 0.26 : 0.18,
     });
 
     if (toTier >= 10) {
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
-        this._spawnTone({
-          freq: f,
-          type: 'triangle',
-          duration: 0.22,
-          delay: 0.08 * (idx + 1),
-          gain: 0.26,
-        });
-      });
+      this.playBigWatermelonFanfare();
     }
+  }
+
+  playBigWatermelonFanfare() {
+    if (!this._canTriggerSfx('big_melon_fanfare', 80)) return;
+    this.sfxCount += 1;
+    this.fanfareCount += 1;
+    [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98].forEach((f, idx) => {
+      this._spawnTone({
+        freq: f,
+        endFreq: f * 1.08,
+        type: 'triangle',
+        duration: 0.26,
+        delay: 0.07 * idx,
+        gain: 0.28,
+      });
+    });
   }
 
   playGoldenFountain() {
     if (!this._canTriggerSfx('fountain', 80)) return;
     this.sfxCount += 1;
+    this.fanfareCount += 1;
     [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, idx) => {
       this._spawnTone({
         freq: f,
@@ -269,6 +299,46 @@ export class WatermelonAudio {
         delay: idx * 0.06,
         gain: 0.28,
       });
+    });
+  }
+
+  playStarUnlock(stars = 1) {
+    if (!this._canTriggerSfx('star_unlock', 80)) return;
+    this.sfxCount += 1;
+    this.starSfxCount += 1;
+    const baseNotes = [659.25, 880.0, 1174.66];
+    baseNotes.forEach((f, i) => {
+      this._spawnTone({
+        freq: f * (1 + (stars - 1) * 0.08),
+        type: 'triangle',
+        duration: 0.18,
+        delay: i * 0.05,
+        gain: 0.24,
+      });
+    });
+  }
+
+  playHeartbeat(proximity = 0.5) {
+    const p = Math.min(1, Math.max(0, Number(proximity) || 0.5));
+    const minIntervalMs = Math.round(660 - p * 240);
+    if (!this._canTriggerSfx('heartbeat', minIntervalMs)) return;
+    this.sfxCount += 1;
+    this.heartbeatCount += 1;
+    // Two-thump lub-dub heartbeat SFX
+    this._spawnTone({
+      freq: 92 + p * 16,
+      endFreq: 58,
+      type: 'sine',
+      duration: 0.11,
+      gain: 0.24,
+    });
+    this._spawnTone({
+      freq: 108 + p * 22,
+      endFreq: 64,
+      type: 'triangle',
+      duration: 0.12,
+      delay: 0.13,
+      gain: 0.28,
     });
   }
 
@@ -342,6 +412,15 @@ export class WatermelonAudio {
       muted: this.muted,
       bgmPlaying: this.bgmPlaying,
       sfxCount: this.sfxCount,
+      heartbeatCount: this.heartbeatCount,
+      fanfareCount: this.fanfareCount,
+      starSfxCount: this.starSfxCount,
+      lastMergeTier: this.lastMergeTier,
+      lastMergePitchHz: this.lastMergePitchHz,
+      lastMergeHz: this.lastMergePitchHz,
+      lastComboPitchHz: this.lastComboPitchHz,
+      lastComboNote: this.lastComboNote,
+      lastMergeNote: this.lastComboNote,
       activeNodes: this.activeNodes,
       contextState: this.ctx ? this.ctx.state : 'uninitialized',
     };

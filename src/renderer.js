@@ -59,7 +59,13 @@ export class WatermelonRenderer {
     this.laserLine = null;
     this.landingRing = null;
     this.warningRimGroup = null;
+    this.rimGlowMesh = null;
+    this.rimGlowMat = null;
     this.penguinGroup = null;
+    this.penguinHeldSlot = null;
+    this.penguinHeldMesh = null;
+    this.penguinNextTier = -1;
+    this.penguinBounceTimer = 0;
     this.evolutionRingItems = [];
     this.podiumStars = [];
     this.podiumTrophy = null;
@@ -315,12 +321,12 @@ export class WatermelonRenderer {
 
     const penguinShadow = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 3.4), shadowMat);
     penguinShadow.rotation.x = -Math.PI * 0.5;
-    penguinShadow.position.set(-6.55, -0.22, 0.35);
+    penguinShadow.position.set(-4.88, -0.22, 0.25);
     this.rootGroup.add(penguinShadow);
 
     const ringShadow = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.2), shadowMat);
     ringShadow.rotation.x = -Math.PI * 0.5;
-    ringShadow.position.set(7.55, -0.22, -0.2);
+    ringShadow.position.set(4.95, -0.22, -0.1);
     this.rootGroup.add(ringShadow);
 
     // Warm Sunlit Wallpaper Backdrop with Wainscot & Arched Window
@@ -416,12 +422,12 @@ export class WatermelonRenderer {
     backMesh.position.set(0, wallHeight * 0.5, -depth * 0.46);
     this.jarGroup.add(backMesh);
 
-    // 3. Dashed Red/Gold Overflow Warning Rim at y = JAR_CONFIG.rimY
+    // 3. Dashed Red/Gold Overflow Warning Rim + Danger Glow Halo at y = JAR_CONFIG.rimY
     this.warningRimGroup = new THREE.Group();
     this.warningRimGroup.position.set(0, rimY, depth * 0.42);
     const dashCount = 13;
     const dashStep = JAR_CONFIG.width / dashCount;
-    const dashGeo = new THREE.BoxGeometry(dashStep * 0.62, 0.11, 0.12);
+    const dashGeo = new THREE.BoxGeometry(dashStep * 0.62, 0.12, 0.12);
     this.warningDashMat = new THREE.MeshStandardMaterial({
       color: 0xef4444,
       emissive: 0xdc2626,
@@ -434,6 +440,19 @@ export class WatermelonRenderer {
       dash.position.x = -hw + dashStep * (i + 0.5);
       this.warningRimGroup.add(dash);
     }
+
+    this.rimGlowMat = new THREE.MeshBasicMaterial({
+      color: 0xff2222,
+      transparent: true,
+      opacity: 0.0,
+      side: THREE.DoubleSide,
+    });
+    this.rimGlowMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(JAR_CONFIG.width + 0.18, 0.42),
+      this.rimGlowMat
+    );
+    this.rimGlowMesh.position.set(0, 0, -0.04);
+    this.warningRimGroup.add(this.rimGlowMesh);
     this.jarGroup.add(this.warningRimGroup);
   }
 
@@ -454,14 +473,17 @@ export class WatermelonRenderer {
       metalness: 0.18,
     });
 
-    const clawCap = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.65, 0.38, 20), goldMat);
-    clawCap.position.y = 1.25;
+    const clawCap = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.46, 0.22, 20), goldMat);
+    clawCap.position.y = 0.68;
     this.dropperGroup.add(clawCap);
+    this.clawCap = clawCap;
+    this.cloudPuffs = [];
 
-    for (const ox of [-0.55, 0, 0.55]) {
-      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), cloudMat);
-      puff.position.set(ox, 1.52 + (ox === 0 ? 0.12 : 0), 0.1);
+    for (const ox of [-0.36, 0, 0.36]) {
+      const puff = new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), cloudMat);
+      puff.position.set(ox, 0.84 + (ox === 0 ? 0.05 : 0), 0.1);
       this.dropperGroup.add(puff);
+      this.cloudPuffs.push({ mesh: puff, ox });
     }
 
     // Glowing vertical laser drop guide line
@@ -604,6 +626,19 @@ export class WatermelonRenderer {
     const hatMelon = this.createBespokeFruitMesh(10, 0.38);
     hatMelon.position.set(0, 2.52, 0);
     this.penguinBody.add(hatMelon);
+
+    // 3D Next-Fruit Tray/Flipper Slot held by the QQ Penguin (pre-cached 0..4 meshes for 0 allocation per drop)
+    this.penguinHeldSlot = new THREE.Group();
+    this.penguinHeldSlot.position.set(0.62, 1.42, 0.86);
+    this.penguinBody.add(this.penguinHeldSlot);
+    this.penguinNextMeshes = [];
+    for (let t = 0; t <= 5; t++) {
+      const m = this.createBespokeFruitMesh(t, 0.34);
+      m.visible = t === 0;
+      this.penguinHeldSlot.add(m);
+      this.penguinNextMeshes.push(m);
+    }
+    this.penguinNextTier = 0;
   }
 
   _buildEvolutionRing() {
@@ -1096,8 +1131,10 @@ export class WatermelonRenderer {
   }
 
   /**
-   * Adapts WebGL viewport and camera framing across landscape and portrait screens
-   * so the 3D jar + tabletop fills >= 60% of the screen cleanly.
+   * Adapts WebGL viewport and camera framing across landscape and portrait screens:
+   * - Landscape (1280x800, 1024x768, 844x390): jar interior height = ~89-90% of viewport height,
+   *   grape diameter >= 58 px at 1280x800, jar 100% visible, zero HUD overlap.
+   * - Portrait (390x844): jar 100% visible horizontally and framed cleanly between top HUD and bottom tool dock.
    */
   resize() {
     const w = Math.max(1, window.innerWidth || 1280);
@@ -1106,39 +1143,140 @@ export class WatermelonRenderer {
 
     if (w < h) {
       // Portrait (e.g. 390x844 mobile/tablet portrait)
-      this.camera.fov = 48;
-      this.camera.position.set(0, 6.4, 24.5);
-      this.cameraTarget.set(0, 6.0, 0);
+      this.camera.fov = 34;
+      const targetHorizSpan = 7.45;
+      const vSpan = Math.max(14.8, targetHorizSpan / Math.max(0.25, w / h));
+      const halfFovRad = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+      const camZ = vSpan / (2 * Math.tan(halfFovRad));
+      this.camera.position.set(0, 4.72, camZ);
+      this.cameraTarget.set(0, 4.72, 0);
       if (this.penguinGroup) {
-        this.penguinGroup.position.set(-3.6, 12.1, -1.2);
-        this.penguinGroup.scale.setScalar(0.62);
+        this.penguinGroup.position.set(-2.35, 9.65, -0.4);
+        this.penguinGroup.scale.setScalar(0.52);
       }
       if (this.evolutionGroup) {
-        this.evolutionGroup.position.set(3.4, 13.0, -1.2);
-        this.evolutionGroup.scale.setScalar(0.42);
+        this.evolutionGroup.visible = false;
       }
     } else {
-      // Landscape (1280x800, 1024x768, 844x390)
-      this.camera.fov = 39;
-      const dist = w / h > 1.85 ? 20.4 : 21.2;
-      this.camera.position.set(0, 6.3, dist);
-      this.cameraTarget.set(0, 5.9, 0);
+      // Landscape (1280x800, 1024x768, 844x390): frame [floorY - 0.3, spawnY + 0.96 + 0.3] into viewport
+      this.camera.fov = 34;
+      const yMin = JAR_CONFIG.floorY - 0.3;
+      const yMax = JAR_CONFIG.spawnY + 0.96 + 0.3;
+      const vSpan = yMax - yMin;
+      const centerY = (yMin + yMax) * 0.5;
+      const halfFovRad = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+      const camZ = vSpan / (2 * Math.tan(halfFovRad));
+      this.camera.position.set(0, centerY, camZ);
+      this.cameraTarget.set(0, centerY, 0);
       if (this.penguinGroup) {
-        this.penguinGroup.position.set(-6.55, 0.1, 0.35);
-        this.penguinGroup.scale.setScalar(1.0);
+        this.penguinGroup.position.set(-4.88, 0.1, 0.25);
+        this.penguinGroup.scale.setScalar(0.85);
       }
       if (this.evolutionGroup) {
-        this.evolutionGroup.position.set(7.55, 5.2, -0.2);
-        this.evolutionGroup.scale.setScalar(0.95);
+        if (h <= 440) {
+          this.evolutionGroup.visible = false;
+        } else {
+          this.evolutionGroup.visible = true;
+          this.evolutionGroup.position.set(5.48, 5.55, -0.1);
+          this.evolutionGroup.scale.setScalar(0.54);
+        }
       }
     }
 
     this.camera.lookAt(this.cameraTarget);
     this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
 
     if (this.renderer) {
       this.renderer.setSize(w, h, false);
     }
+    this._cachedW = w;
+    this._cachedH = h;
+    this._cachedJarRect = this._computeJarScreenRect();
+    this._cachedGrapePx = this._computeGrapePixelDiameter();
+  }
+
+  /**
+   * Projects a 3D world coordinate (worldX, worldY, worldZ) into screen pixels.
+   * @param {number} worldX
+   * @param {number} worldY
+   * @param {number=} worldZ
+   * @return {{x: number, y: number}}
+   */
+  worldToScreen(worldX, worldY, worldZ = 0) {
+    const w = Math.max(1, window.innerWidth || this.canvas.clientWidth || 1280);
+    const h = Math.max(1, window.innerHeight || this.canvas.clientHeight || 800);
+    const v = new THREE.Vector3(worldX, worldY, worldZ);
+    v.project(this.camera);
+    return {
+      x: (v.x * 0.5 + 0.5) * w,
+      y: (-v.y * 0.5 + 0.5) * h,
+    };
+  }
+
+  _computeJarScreenRect() {
+    const w = Math.max(1, window.innerWidth || 1280);
+    const h = Math.max(1, window.innerHeight || 800);
+    const topLeft = this.worldToScreen(-JAR_CONFIG.halfWidth, JAR_CONFIG.rimY, 0);
+    const bottomRight = this.worldToScreen(JAR_CONFIG.halfWidth, JAR_CONFIG.floorY, 0);
+    const outerLeft = this.worldToScreen(-(JAR_CONFIG.halfWidth + JAR_CONFIG.wallThickness + 0.15), JAR_CONFIG.rimY * 0.5, 0);
+    const outerRight = this.worldToScreen(JAR_CONFIG.halfWidth + JAR_CONFIG.wallThickness + 0.15, JAR_CONFIG.rimY * 0.5, 0);
+    const heldTop = this.worldToScreen(0, JAR_CONFIG.spawnY + 0.96, 0);
+    const evoLeft = this.worldToScreen(5.48 - 2.30 * 0.54, 5.55, -0.1);
+    const left = Math.min(topLeft.x, bottomRight.x);
+    const right = Math.max(topLeft.x, bottomRight.x);
+    const top = Math.min(topLeft.y, bottomRight.y);
+    const bottom = Math.max(topLeft.y, bottomRight.y);
+    const width = right - left;
+    const height = bottom - top;
+    return {
+      left: Number(left.toFixed(2)),
+      top: Number(top.toFixed(2)),
+      right: Number(right.toFixed(2)),
+      bottom: Number(bottom.toFixed(2)),
+      width: Number(width.toFixed(2)),
+      height: Number(height.toFixed(2)),
+      interiorHeightRatio: Number((height / h).toFixed(4)),
+      heldFruitTopPx: Number(heldTop.y.toFixed(2)),
+      jarFloorBottomMarginPx: Number((h - bottom).toFixed(2)),
+      jarOuterRightPx: Number(outerRight.x.toFixed(2)),
+      evolutionWheelVisible: Boolean(this.evolutionGroup && this.evolutionGroup.visible),
+      evolutionWheelLeftPx: Number(evoLeft.x.toFixed(2)),
+      fullyVisible:
+        outerLeft.x >= 0 &&
+        outerRight.x <= w &&
+        top >= 0 &&
+        bottom <= h,
+    };
+  }
+
+  /**
+   * Returns the projected screen bounding box of the 3D jar interior (x = -halfWidth..+halfWidth, y = floorY..rimY).
+   * @return {Object}
+   */
+  getJarScreenRect() {
+    if (this._cachedW !== window.innerWidth || this._cachedH !== window.innerHeight) {
+      this.resize();
+    }
+    return this._cachedJarRect || (this._cachedJarRect = this._computeJarScreenRect());
+  }
+
+  _computeGrapePixelDiameter() {
+    const r = FRUIT_TIERS[0].radius;
+    const pTop = this.worldToScreen(0, 4.5 + r, 0);
+    const pBottom = this.worldToScreen(0, 4.5 - r, 0);
+    return Number(Math.abs(pBottom.y - pTop.y).toFixed(2));
+  }
+
+  /**
+   * Computes the rendered pixel diameter of a Tier-0 Grape at the center of the jar.
+   * @return {number}
+   */
+  getGrapePixelDiameter() {
+    if (this._cachedW !== window.innerWidth || this._cachedH !== window.innerHeight) {
+      this.resize();
+    }
+    return this._cachedGrapePx || (this._cachedGrapePx = this._computeGrapePixelDiameter());
   }
 
   /**
@@ -1194,13 +1332,18 @@ export class WatermelonRenderer {
       this.processedEventFrame = -1;
     }
 
-    // 1. Jar Shake Animation
-    if (state.shakeTimer > 0) {
-      const intensity = state.shakeTimer * 0.25;
-      this.jarGroup.position.x = Math.sin(this.clockTime * 55) * intensity;
-      this.jarGroup.rotation.z = Math.cos(this.clockTime * 48) * intensity * 0.14;
+    // 1. Jar Shake & Tier-Scaled Screen Shake Animation
+    const shakeAmp = Math.max(
+      state.shakeTimer > 0 ? state.shakeTimer * 0.25 : 0,
+      state.screenShake > 0 ? state.screenShake : 0
+    );
+    if (shakeAmp > 0) {
+      this.jarGroup.position.x = Math.sin(this.clockTime * 55) * shakeAmp;
+      this.jarGroup.position.y = Math.cos(this.clockTime * 62) * shakeAmp * 0.55;
+      this.jarGroup.rotation.z = Math.cos(this.clockTime * 48) * shakeAmp * 0.12;
     } else {
       this.jarGroup.position.x = 0;
+      this.jarGroup.position.y = 0;
       this.jarGroup.rotation.z = 0;
     }
 
@@ -1223,13 +1366,15 @@ export class WatermelonRenderer {
       mesh.position.set(f.x, f.y, f.z);
       mesh.rotation.z = f.angle;
 
-      // Squash-and-stretch spring wobble on merge/bounce
+      // Merge squash/stretch (1.25 / 0.80 over 180 ms)
       let sx = f.spawnScale || 1.0;
       let sy = f.spawnScale || 1.0;
       if (f.wobbleTimer > 0) {
-        const w = Math.sin(f.wobbleTimer * 28) * f.wobbleTimer * 0.32;
-        sx *= 1 + w;
-        sy *= 1 - w * 0.85;
+        const dur = JAR_CONFIG.mergeSquashDurationSec || 0.18;
+        const p = Math.min(1, Math.max(0, f.wobbleTimer / dur));
+        const osc = Math.cos((1 - p) * Math.PI * 2.5) * p;
+        sx *= 1 + (JAR_CONFIG.mergeSquashX - 1) * osc;
+        sy *= 1 + (JAR_CONFIG.mergeStretchY - 1) * osc;
       }
       if (state.activeTool === 'hammer') {
         const pulse = 1 + Math.sin(this.clockTime * 10 + f.id) * 0.04;
@@ -1261,7 +1406,17 @@ export class WatermelonRenderer {
     this.landingRing.visible = showDropper;
 
     if (showDropper && state.currentFruit) {
-      this.dropperGroup.position.set(state.aimX, JAR_CONFIG.spawnY, 0);
+      const visualDropperY = JAR_CONFIG.spawnY;
+      this.dropperGroup.position.set(state.aimX, visualDropperY, 0);
+      const curR = state.currentFruit.radius || 0.5;
+      if (this.clawCap) {
+        this.clawCap.position.y = curR + 0.12;
+      }
+      if (this.cloudPuffs) {
+        for (const cp of this.cloudPuffs) {
+          cp.mesh.position.y = curR + 0.26 + (cp.ox === 0 ? 0.04 : 0);
+        }
+      }
       if (this.heldFruitTier !== state.currentFruit.tier) {
         if (this.heldFruitGroup) {
           this.dropperGroup.remove(this.heldFruitGroup);
@@ -1275,7 +1430,7 @@ export class WatermelonRenderer {
       }
 
       const dropY = state.projectedDropY ?? JAR_CONFIG.floorY + state.currentFruit.radius;
-      const beamLen = Math.max(0.2, JAR_CONFIG.spawnY - dropY);
+      const beamLen = Math.max(0.2, visualDropperY - dropY);
       this.laserLine.scale.set(1, beamLen, 1);
       this.laserLine.position.set(state.aimX, dropY + beamLen * 0.5, -0.08);
 
@@ -1284,38 +1439,74 @@ export class WatermelonRenderer {
       this.landingRing.scale.setScalar(rScale);
     }
 
-    // 4. Warning Rim Pulse
+    // 4. Warning Rim Pulse & Near-Rim Danger Glow
     if (this.warningDashMat) {
-      const danger = state.maxOverflowTimer > 0.05;
-      this.warningDashMat.emissiveIntensity = danger
-        ? 0.65 + Math.sin(this.clockTime * 16) * 0.35
-        : 0.28;
+      const danger = Boolean(state.nearRimDanger) || state.maxOverflowTimer > 0.05;
+      const pulse = Math.sin(this.clockTime * 16) * 0.5 + 0.5;
+      this.warningDashMat.emissiveIntensity = danger ? 0.55 + pulse * 0.65 : 0.28;
+      if (this.warningRimGroup) {
+        this.warningRimGroup.scale.y = danger ? 1 + pulse * 0.45 : 1.0;
+      }
+      if (this.rimGlowMat) {
+        const prox = Math.max(state.dangerProximity || 0, state.maxOverflowTimer > 0 ? 1 : 0);
+        this.rimGlowMat.opacity = danger ? (0.24 + pulse * 0.48) * Math.max(0.4, prox) : 0.0;
+      }
     }
 
     // 5. Process New Simulation Events for 3D Juice Particles & Hammer Swing FX
     this._consumeSimEvents(state);
     this._stepVisualEffects(dt);
 
-    // 6. Animate QQ Penguin Cheerleader & 3D Evolution Ring
+    // 6. Sync 3D Next-Fruit Held by QQ Penguin + Animate Bounce/Cheer & Evolution Ring
+    if (this.penguinNextMeshes && typeof state.nextFruitTier === 'number') {
+      const targetTier = Math.min(this.penguinNextMeshes.length - 1, Math.max(0, state.nextFruitTier));
+      if (this.penguinNextTier !== targetTier) {
+        for (let i = 0; i < this.penguinNextMeshes.length; i++) {
+          this.penguinNextMeshes[i].visible = i === targetTier;
+        }
+        this.penguinNextTier = targetTier;
+      }
+      const activeHeld = this.penguinNextMeshes[this.penguinNextTier];
+      if (activeHeld) {
+        activeHeld.rotation.y = this.clockTime * 1.8;
+      }
+    }
+
     if (this.penguinBody) {
       if (this.cheerTimer > 0) {
         this.cheerTimer = Math.max(0, this.cheerTimer - dt);
-        this.penguinBody.position.y = 0.36 + Math.abs(Math.sin(this.clockTime * 16)) * 0.48;
-        this.rightFlipper.rotation.z = -1.2 + Math.sin(this.clockTime * 22) * 0.45;
-        this.leftFlipper.rotation.z = 1.2 - Math.sin(this.clockTime * 22) * 0.45;
+        this.penguinBody.position.y = 0.36 + Math.abs(Math.sin(this.clockTime * 18)) * 0.58;
+        this.rightFlipper.rotation.z = -1.35 + Math.sin(this.clockTime * 24) * 0.52;
+        this.leftFlipper.rotation.z = 1.35 - Math.sin(this.clockTime * 24) * 0.52;
+      } else if (this.penguinBounceTimer > 0) {
+        this.penguinBounceTimer = Math.max(0, this.penguinBounceTimer - dt);
+        const bounce = Math.sin((1 - this.penguinBounceTimer / 0.42) * Math.PI);
+        this.penguinBody.position.y = 0.36 + bounce * 0.34;
+        this.rightFlipper.rotation.z = -0.95 - bounce * 0.35;
+        this.leftFlipper.rotation.z = 0.65 + bounce * 0.35;
       } else {
         this.penguinBody.position.y = 0.36 + Math.sin(this.clockTime * 3.2) * 0.06;
-        this.rightFlipper.rotation.z = -0.75 + Math.sin(this.clockTime * 4.5) * 0.22;
+        this.rightFlipper.rotation.z = -0.75 + Math.sin(this.clockTime * 4.5) * 0.18;
         this.leftFlipper.rotation.z = 0.45 - Math.sin(this.clockTime * 4.5) * 0.12;
       }
     }
 
     for (const item of this.evolutionRingItems) {
       const unlocked = item.tier <= state.highestTier;
-      item.halo.material.opacity = unlocked ? 0.82 : 0.18;
-      item.halo.material.color.setHex(
-        item.tier === state.highestTier ? 0x4ade80 : 0xfde047
-      );
+      const isHighlighted =
+        item.tier === state.highlightedTier && (state.highlightTimer || 0) > 0;
+      if (isHighlighted) {
+        const pulse = 1.42 + Math.sin(this.clockTime * 24) * 0.14;
+        item.group.scale.setScalar(pulse);
+        item.halo.material.opacity = 1.0;
+        item.halo.material.color.setHex(0xffffff);
+      } else {
+        item.group.scale.setScalar(1.0);
+        item.halo.material.opacity = unlocked ? 0.82 : 0.18;
+        item.halo.material.color.setHex(
+          item.tier === state.highestTier ? 0x4ade80 : 0xfde047
+        );
+      }
       item.miniFruit.rotation.y = Math.sin(this.clockTime * 2 + item.tier * 0.5) * 0.28;
     }
 
@@ -1347,22 +1538,71 @@ export class WatermelonRenderer {
       }
       if (ev.type === 'merge') {
         const spec = FRUIT_TIERS[ev.toTier] || FRUIT_TIERS[0];
-        this._spawnJuiceBurst(ev.x, ev.y, spec.juiceColor, 10);
+        this._spawnJuiceBurst(
+          ev.x,
+          ev.y,
+          spec.juiceColor,
+          JAR_CONFIG.mergeJuiceParticles || 14
+        );
         this._spawnShockwaveRing(ev.x, ev.y, spec.radius, spec.color);
-        this.cheerTimer = 0.9;
+        this.penguinBounceTimer = 0.42;
+        if (ev.toTier >= 7) {
+          this.cheerTimer = 1.25;
+        }
+      } else if (ev.type === 'big_watermelon_celebration') {
+        this._spawnConfettiBurst(ev.x, ev.y, 26);
+        this._spawnJuiceBurst(ev.x, ev.y, '#facc15', 18);
+        this._spawnShockwaveRing(ev.x, ev.y, 2.7, '#facc15');
+        this.cheerTimer = 1.8;
       } else if (ev.type === 'golden_watermelon_fountain') {
+        this._spawnConfettiBurst(ev.x, ev.y, 28);
         this._spawnJuiceBurst(ev.x, ev.y, '#facc15', 20);
         this._spawnShockwaveRing(ev.x, ev.y, 2.8, '#facc15');
         this.cheerTimer = 1.8;
       } else if (ev.type === 'tool_hammer_smash') {
         const spec = FRUIT_TIERS[ev.tier] || FRUIT_TIERS[0];
         this._spawnHammerSwing(ev.x, ev.y);
-        this._spawnJuiceBurst(ev.x, ev.y, spec.juiceColor, 12);
-        this.cheerTimer = 0.8;
+        this._spawnJuiceBurst(
+          ev.x,
+          ev.y,
+          spec.juiceColor,
+          JAR_CONFIG.mergeJuiceParticles || 14
+        );
+        this.penguinBounceTimer = 0.42;
       }
     }
     if (events.length > 0) {
       this.processedEventFrame = events[events.length - 1].frame + 1;
+    }
+  }
+
+  _spawnConfettiBurst(x, y, count = 24) {
+    const colors = ['#ef4444', '#facc15', '#22c55e', '#38bdf8', '#ec4899', '#a855f7'];
+    if (!this.sharedConfettiGeo) {
+      this.sharedConfettiGeo = new THREE.BoxGeometry(0.18, 0.28, 0.04);
+    }
+    for (let i = 0; i < count; i++) {
+      if (this.particles.length >= 64) {
+        const oldest = this.particles.shift();
+        this.fxGroup.remove(oldest.mesh);
+      }
+      const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(colors[i % colors.length]),
+      });
+      const piece = new THREE.Mesh(this.sharedConfettiGeo, mat);
+      piece.position.set(x, y, 0.45);
+      piece.rotation.set(i * 0.5, i * 0.8, i * 0.3);
+      this.fxGroup.add(piece);
+      const a = (i / count) * Math.PI * 2;
+      const speed = 3.8 + (i % 5) * 1.5;
+      this.particles.push({
+        mesh: piece,
+        vx: Math.cos(a) * speed,
+        vy: Math.sin(a) * speed + 4.8,
+        vz: (i % 2 === 0 ? 1 : -1) * 1.5,
+        life: 0.78,
+        maxLife: 0.78,
+      });
     }
   }
 

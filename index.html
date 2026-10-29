@@ -40,7 +40,7 @@
       pointer-events: none;
     }
 
-    /* Gameplay HUD: strictly 6 clickable buttons (3 top-right, 3 bottom-center), each >= 72x72px */
+    /* Gameplay HUD: strictly 5 clickable buttons (2 top-right, 3 tool buttons), each >= 70x70px */
     #gameplay-hud {
       position: fixed;
       inset: 0;
@@ -59,13 +59,14 @@
       pointer-events: none;
     }
     .hud-score-card {
-      background: rgba(255, 251, 235, 0.92);
+      background: rgba(255, 251, 235, 0.95);
       border: 3px solid #f59e0b;
       border-radius: 18px;
-      padding: 6px 12px;
+      padding: 6px 11px;
       box-shadow: 0 6px 16px rgba(180, 83, 9, 0.18);
       color: #78350f;
-      min-width: 112px;
+      min-width: 176px;
+      max-width: 224px;
     }
     .score-label {
       font-size: 12px;
@@ -73,19 +74,85 @@
       color: #b45309;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 6px;
     }
     .score-num {
       font-size: 24px;
       font-weight: 900;
       color: #d97706;
-      line-height: 1.1;
+      line-height: 1.06;
     }
-    .score-sub {
-      font-size: 11px;
-      font-weight: 700;
+    /* Chunky Star Progress Bar under Score (3000 / 8000 / 15000 classic) */
+    .hud-star-bar {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .star-bar-track {
+      position: relative;
+      width: 100%;
+      height: 13px;
+      background: #fde68a;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 2px solid #f59e0b;
+      box-shadow: inset 0 1px 3px rgba(180, 83, 9, 0.22);
+    }
+    .star-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #f59e0b 0%, #eab308 55%, #22c55e 100%);
+      border-radius: 999px;
+      transition: width 0.16s ease-out;
+    }
+    .star-bar-milestones {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14px;
+      line-height: 1.15;
+      font-weight: 900;
       color: #92400e;
-      margin-top: 2px;
+      gap: 4px;
+    }
+    .star-milestone {
+      display: inline-flex;
+      align-items: center;
+      gap: 1px;
+      font-size: 14px;
+      opacity: 0.65;
+      padding: 1px 3px;
+      border-radius: 6px;
+      transform: scale(1);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, background 0.2s ease;
+    }
+    .star-milestone.star-earned {
+      opacity: 1;
+      color: #b45309;
+      background: #fef08a;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.75);
+      text-shadow: 0 1px 0 #ffffff;
+    }
+    .star-milestone.star-pop {
+      animation: starPopAnim 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes starPopAnim {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.10); }
+      100% { transform: scale(1); }
+    }
+
+    .score-sub {
+      font-size: 13.5px;
+      line-height: 1.2;
+      font-weight: 800;
+      color: #92400e;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .hud-top-actions {
       display: flex;
@@ -96,23 +163,23 @@
 
     .hud-btn {
       pointer-events: auto;
-      min-width: 72px;
-      min-height: 72px;
-      width: 72px;
-      height: 72px;
-      border-radius: 20px;
+      min-width: 70px;
+      min-height: 70px;
+      width: 70px;
+      height: 70px;
+      border-radius: 18px;
       border: 3px solid #f59e0b;
       background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
       color: #78350f;
       font-weight: 900;
-      font-size: 13px;
+      font-size: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 2px;
       cursor: pointer;
-      box-shadow: 0 5px 0 #d97706, 0 8px 14px rgba(0, 0, 0, 0.16);
+      box-shadow: 0 4px 0 #d97706, 0 6px 12px rgba(0, 0, 0, 0.16);
       padding: 4px;
       position: relative;
       transition: transform 0.08s ease;
@@ -121,17 +188,17 @@
       transform: translateY(3px);
     }
     .hud-btn .btn-icon {
-      font-size: 24px;
+      font-size: 22px;
       line-height: 1;
     }
     .hud-btn .btn-txt {
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.1;
     }
     .hud-btn.tool-armed {
       background: linear-gradient(180deg, #fecdd3 0%, #fda4af 100%);
       border-color: #e11d48;
-      box-shadow: 0 5px 0 #be123c, 0 0 18px rgba(225, 29, 72, 0.55);
+      box-shadow: 0 4px 0 #be123c, 0 0 18px rgba(225, 29, 72, 0.55);
     }
     .tool-count {
       position: absolute;
@@ -151,23 +218,23 @@
       pointer-events: none;
     }
 
-    /* Center Status Banners (Combo / Warning / Hammer Tip) */
+    /* Status Banners (Left rail in landscape so zero overlap with 3D jar) */
     .hud-banners {
       position: fixed;
-      top: 90px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 132px;
+      left: 10px;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-start;
       gap: 6px;
       pointer-events: none;
+      max-width: 210px;
     }
     .status-pill {
-      padding: 5px 14px;
+      padding: 4px 12px;
       border-radius: 999px;
       font-weight: 900;
-      font-size: 14px;
+      font-size: 13px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     .combo-pill {
@@ -186,16 +253,142 @@
       border: 2px solid #bfdbfe;
     }
 
-    /* Bottom Power-Up Tool Dock */
+    /* "危险!" Stamp when overflowTimer > 0.8s */
+    .danger-stamp {
+      padding: 5px 14px;
+      border-radius: 12px;
+      background: rgba(220, 38, 38, 0.95);
+      color: #fef08a;
+      border: 3px solid #fef08a;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+      transform: rotate(-6deg);
+      animation: dangerPulse 0.32s infinite alternate ease-in-out;
+    }
+    @keyframes dangerPulse {
+      0% { transform: rotate(-6deg) scale(0.96); }
+      100% { transform: rotate(-6deg) scale(1.08); }
+    }
+
+    /* Floating Merge Popups ("+pts" and "×2/×3/×4") at 3D merge point */
+    #hud-popups {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 15;
+      overflow: hidden;
+    }
+    .merge-popup {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      animation: mergePopupFloat 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .merge-popup-combo {
+      font-size: 22px;
+      font-weight: 900;
+      color: #fef08a;
+      -webkit-text-stroke: 1.5px #b45309;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.38);
+      line-height: 1;
+    }
+    .merge-popup-pts {
+      font-size: 18px;
+      font-weight: 900;
+      color: #ffffff;
+      background: rgba(22, 163, 74, 0.92);
+      border: 2px solid #dcfce7;
+      border-radius: 999px;
+      padding: 1px 9px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.24);
+      line-height: 1.15;
+    }
+    @keyframes mergePopupFloat {
+      0% { opacity: 0.98; transform: translate(-50%, -35%) scale(0.92); }
+      25% { opacity: 1; transform: translate(-50%, -65%) scale(1.14); }
+      78% { opacity: 1; transform: translate(-50%, -105%) scale(1.04); }
+      100% { opacity: 0; transform: translate(-50%, -135%) scale(0.95); }
+    }
+
+    /* Power-Up Tool Dock: Vertical Right Side Rail in Landscape, Bottom Bar in Portrait */
     .hud-bottom-dock {
       position: fixed;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 10px;
+      bottom: 10px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       pointer-events: auto;
+    }
+
+    /* Portrait layout (e.g. 390x844): tools below the jar, banners centered below top bar */
+    @media (max-aspect-ratio: 1/1) {
+      .hud-score-card {
+        min-width: 214px;
+        max-width: 222px;
+        padding: 5px 8px;
+      }
+      .star-milestone {
+        padding: 1px 1px;
+      }
+      .hud-banners {
+        top: 112px;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        width: 96vw;
+        max-width: 374px;
+      }
+      .danger-stamp {
+        padding: 2px 9px;
+        font-size: 14px;
+      }
+      .status-pill {
+        padding: 2px 8px;
+        font-size: 11px;
+      }
+      .hud-bottom-dock {
+        right: auto;
+        left: 50%;
+        bottom: 10px;
+        transform: translateX(-50%);
+        flex-direction: row;
+        gap: 12px;
+      }
+    }
+
+    /* Short Landscape layout (e.g. 844x390): keep side rail compact */
+    @media (max-height: 440px) and (min-aspect-ratio: 1/1) {
+      .hud-top-bar {
+        top: 6px;
+        left: 8px;
+        right: 8px;
+      }
+      .hud-score-card {
+        padding: 4px 10px;
+      }
+      .score-num {
+        font-size: 20px;
+      }
+      .hud-banners {
+        top: 116px;
+        left: 8px;
+      }
+      .hud-bottom-dock {
+        right: 8px;
+        bottom: 6px;
+        gap: 6px;
+      }
     }
 
     /* Title & Podium Overlays — compact cards keeping the 3D scene front-and-center */
@@ -232,6 +425,18 @@
       font-weight: 700;
       color: #92400e;
     }
+    .new-record-banner {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 3px 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ef4444, #f59e0b);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 900;
+      border: 2px solid #fef08a;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+    }
     .overlay-actions-bar {
       display: flex;
       flex-wrap: wrap;
@@ -248,8 +453,8 @@
     .cta-btn {
       pointer-events: auto;
       min-width: 112px;
-      min-height: 72px;
-      height: 72px;
+      min-height: 70px;
+      height: 70px;
       padding: 8px 16px;
       border-radius: 20px;
       border: 3px solid #ffffff;
@@ -262,6 +467,12 @@
       justify-content: center;
       gap: 6px;
       box-shadow: 0 5px 0 rgba(0, 0, 0, 0.22), 0 8px 16px rgba(0, 0, 0, 0.18);
+    }
+    .cta-primary {
+      min-width: 138px;
+      font-size: 18px;
+      border-color: #fef08a;
+      box-shadow: 0 5px 0 #15803d, 0 0 18px rgba(34, 197, 94, 0.45);
     }
     .cta-green {
       background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
@@ -290,7 +501,7 @@
 <body>
   <canvas id="game-canvas" data-testid="game-canvas"></canvas>
 
-  <!-- Title Screen Overlay (3 buttons >= 72x72px, 3D Jar & QQ Penguin visible in center) -->
+  <!-- Title Screen Overlay (3 buttons >= 70x70px, 3D Jar & QQ Penguin visible in center) -->
   <section id="title-overlay" class="overlay-screen" data-testid="title-overlay">
     <div class="title-banner-card non-interactive">
       <h1>🍉 合成大西瓜 3D</h1>
@@ -298,7 +509,7 @@
     </div>
 
     <div class="overlay-actions-bar">
-      <button id="btn-start-classic" class="cta-btn cta-green" data-testid="btn-start-classic" aria-label="开始经典合成">
+      <button id="btn-start-classic" class="cta-btn cta-green cta-primary" data-testid="btn-start-classic" aria-label="开始经典合成">
         🍉 经典合成
       </button>
       <button id="btn-start-rush" class="cta-btn cta-orange" data-testid="btn-start-rush" aria-label="开始限时冲刺">
@@ -310,25 +521,31 @@
     </div>
   </section>
 
-  <!-- Active Gameplay HUD (Strictly 6 buttons >= 72x72px, zero overlaps) -->
+  <!-- Active Gameplay HUD (Strictly 5 buttons >= 70x70px, zero overlaps with 3D jar) -->
   <section id="gameplay-hud" data-testid="gameplay-hud" hidden>
     <div class="hud-top-bar">
-      <div class="hud-score-card non-interactive">
+      <div class="hud-score-card non-interactive" data-testid="hud-score-card">
         <div class="score-label">
           <span id="hud-mode-badge">经典合成</span>
           <span id="hud-timer-badge" hidden>⏳ 02:00</span>
         </div>
         <div class="score-num" id="hud-score-value" data-testid="hud-score-value">0</div>
+        <div class="hud-star-bar" id="hud-star-bar" data-testid="hud-star-bar">
+          <div class="star-bar-track">
+            <div class="star-bar-fill" id="hud-star-fill" data-testid="hud-star-fill"></div>
+          </div>
+          <div class="star-bar-milestones">
+            <span id="star-mark-1" class="star-milestone" data-testid="star-mark-1">⭐3000</span>
+            <span id="star-mark-2" class="star-milestone" data-testid="star-mark-2">⭐8000</span>
+            <span id="star-mark-3" class="star-milestone" data-testid="star-mark-3">⭐15000</span>
+          </div>
+        </div>
         <div class="score-sub">
           最高: <span id="hud-best-value">0</span> · <span id="hud-next-fruit">下一颗: 樱桃</span>
         </div>
       </div>
 
       <div class="hud-top-actions">
-        <button id="hud-btn-mode" class="hud-btn" data-testid="hud-btn-mode" aria-label="切换模式">
-          <span class="btn-icon">⚡</span>
-          <span class="btn-txt">冲刺</span>
-        </button>
         <button id="hud-btn-audio" class="hud-btn" data-testid="hud-btn-audio" aria-label="声音开关">
           🔊
         </button>
@@ -340,42 +557,49 @@
     </div>
 
     <div class="hud-banners non-interactive">
+      <div id="hud-danger-stamp" class="danger-stamp" data-testid="hud-danger-stamp" hidden>危险!</div>
       <div id="hud-combo-banner" class="status-pill combo-pill" hidden>🔥 连击 Combo x2!</div>
-      <div id="hud-warning-banner" class="status-pill warning-pill" hidden>⚠️ 满杯警戒 2.5s</div>
+      <div id="hud-warning-banner" class="status-pill warning-pill" hidden>⚠️ 满杯警戒 2.0s</div>
       <div id="hud-hammer-banner" class="status-pill hammer-pill" hidden>🔨 点击瓶中任意水果即可敲碎!</div>
     </div>
 
-    <div class="hud-bottom-dock">
+    <div id="hud-popups" class="non-interactive" data-testid="hud-popups"></div>
+
+    <div class="hud-bottom-dock" data-testid="hud-bottom-dock">
       <button id="hud-btn-shake" class="hud-btn" data-testid="hud-btn-shake" aria-label="摇一摇">
         <span class="btn-icon">📳</span>
         <span class="btn-txt">摇一摇</span>
-        <span id="cnt-shake" class="tool-count">2</span>
+        <span id="cnt-shake" class="tool-count">1</span>
       </button>
       <button id="hud-btn-hammer" class="hud-btn" data-testid="hud-btn-hammer" aria-label="魔法锤">
         <span class="btn-icon">🔨</span>
         <span class="btn-txt">魔法锤</span>
-        <span id="cnt-hammer" class="tool-count">2</span>
+        <span id="cnt-hammer" class="tool-count">1</span>
       </button>
       <button id="hud-btn-rainbow" class="hud-btn" data-testid="hud-btn-rainbow" aria-label="彩虹升级">
         <span class="btn-icon">🌈</span>
         <span class="btn-txt">彩虹升级</span>
-        <span id="cnt-rainbow" class="tool-count">2</span>
+        <span id="cnt-rainbow" class="tool-count">1</span>
       </button>
     </div>
   </section>
 
-  <!-- 3D Top-3 Star Podium Overlay (2 buttons >= 72x72px, 3D Podium visible in center) -->
+  <!-- 3D Top-3 Star Podium Overlay (3 buttons >= 70x70px, 3D Podium visible in center) -->
   <section id="podium-overlay" class="overlay-screen" data-testid="podium-overlay" hidden>
     <div class="title-banner-card non-interactive">
       <h1 id="podium-title">🍉 合成结算领奖台</h1>
+      <div id="podium-new-record" class="new-record-banner" data-testid="podium-new-record" hidden>🏆 新纪录!</div>
       <p id="podium-stars-text" style="font-size: 20px; margin: 4px 0;">⭐⭐⭐</p>
       <p id="podium-rank-badge">🥇 冠军领奖台 (3星满贯!)</p>
       <p>总分: <strong id="podium-score-value">0</strong> · 合成大西瓜: <strong id="podium-watermelons-value">0</strong> 个</p>
     </div>
 
     <div class="overlay-actions-bar">
-      <button id="btn-play-again" class="cta-btn cta-green" data-testid="btn-play-again" aria-label="再来一局">
+      <button id="btn-play-again" class="cta-btn cta-green cta-primary" data-testid="btn-play-again" aria-label="再来一局">
         🔄 再来一局
+      </button>
+      <button id="btn-podium-mode" class="cta-btn cta-orange" data-testid="btn-podium-mode" aria-label="切换模式">
+        ⚡ 限时冲刺
       </button>
       <button id="btn-podium-home" class="cta-btn cta-gold" data-testid="btn-podium-home" aria-label="返回主界面">
         🏠 返回大厅

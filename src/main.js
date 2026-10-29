@@ -30,6 +30,8 @@ class WatermelonApp {
     this.isPointerDragging = false;
     this.activePointerId = null;
     this.lastProcessedEventIdx = 0;
+    this.lastPopupText = '';
+    this.lastPopupComboText = '';
     this.rafId = null;
     this.lastFrameTime = performance.now();
     this.accumulator = 0;
@@ -49,11 +51,11 @@ class WatermelonApp {
       mode: 'classic',
       seed: 20261029,
       customFruits: [
-        { tier: 6, x: -1.8, y: 1.2 },
-        { tier: 5, x: 1.4, y: 1.02 },
-        { tier: 4, x: 0.0, y: 0.86 },
-        { tier: 3, x: -0.6, y: 2.3 },
-        { tier: 2, x: 0.85, y: 2.2 },
+        { tier: 5, x: -1.4, y: 1.16 },
+        { tier: 4, x: 1.1, y: 0.96 },
+        { tier: 3, x: -0.1, y: 0.78 },
+        { tier: 2, x: -0.5, y: 2.1 },
+        { tier: 1, x: 0.65, y: 2.0 },
       ],
     });
     this._syncAudioEvents(true);
@@ -77,9 +79,16 @@ class WatermelonApp {
       hudNextFruit: document.getElementById('hud-next-fruit'),
       hudModeBadge: document.getElementById('hud-mode-badge'),
       hudTimerBadge: document.getElementById('hud-timer-badge'),
+      hudStarBar: document.getElementById('hud-star-bar'),
+      hudStarFill: document.getElementById('hud-star-fill'),
+      starMark1: document.getElementById('star-mark-1'),
+      starMark2: document.getElementById('star-mark-2'),
+      starMark3: document.getElementById('star-mark-3'),
+      hudDangerStamp: document.getElementById('hud-danger-stamp'),
       hudComboBanner: document.getElementById('hud-combo-banner'),
       hudWarningBanner: document.getElementById('hud-warning-banner'),
       hudHammerBanner: document.getElementById('hud-hammer-banner'),
+      hudPopups: document.getElementById('hud-popups'),
 
       btnShake: document.getElementById('hud-btn-shake'),
       btnHammer: document.getElementById('hud-btn-hammer'),
@@ -93,11 +102,13 @@ class WatermelonApp {
       cntRainbow: document.getElementById('cnt-rainbow'),
 
       podiumTitle: document.getElementById('podium-title'),
+      podiumNewRecord: document.getElementById('podium-new-record'),
       podiumStarsText: document.getElementById('podium-stars-text'),
       podiumScore: document.getElementById('podium-score-value'),
       podiumRankBadge: document.getElementById('podium-rank-badge'),
       podiumWatermelons: document.getElementById('podium-watermelons-value'),
       btnPlayAgain: document.getElementById('btn-play-again'),
+      btnPodiumMode: document.getElementById('btn-podium-mode'),
       btnPodiumHome: document.getElementById('btn-podium-home'),
     };
   }
@@ -148,7 +159,7 @@ class WatermelonApp {
       this.syncUI();
     });
 
-    // Gameplay HUD Buttons (exactly 6 controls, each >= 72x72px)
+    // Gameplay HUD Buttons (strictly 5 controls during play, each >= 70x70px)
     this.dom.btnShake?.addEventListener('click', (ev) => {
       ev.stopPropagation();
       this.audio.unlock(ev);
@@ -186,6 +197,11 @@ class WatermelonApp {
     this.dom.btnPlayAgain?.addEventListener('click', (ev) => {
       this.audio.unlock(ev);
       this.startMatch({ mode: this.sim.mode, seed: (this.sim.seed + 7) >>> 0 });
+    });
+    this.dom.btnPodiumMode?.addEventListener('click', (ev) => {
+      this.audio.unlock(ev);
+      const nextMode = this.sim.mode === 'classic' ? 'rush' : 'classic';
+      this.startMatch({ mode: nextMode, seed: (this.sim.seed + 1) >>> 0 });
     });
     this.dom.btnPodiumHome?.addEventListener('click', (ev) => {
       this.audio.unlock(ev);
@@ -343,14 +359,84 @@ class WatermelonApp {
     this.rafId = window.requestAnimationFrame(tick);
   }
 
-  _syncAudioEvents(silent = false) {
-    const events = this.sim.events;
-    if (silent) {
-      this.lastProcessedEventIdx = events.length;
+  _spawnMergePopup(ev) {
+    const ptsStr = `+${ev.scoreGained || ev.bonus || 0}`;
+    this.lastPopupText = ptsStr;
+    if (ev.combo && ev.combo >= 2) {
+      this.lastPopupComboText = `×${ev.combo}`;
+    }
+    if (!this.dom.hudPopups) return;
+    const now = performance.now();
+    if (
+      this.lastPopupWallMs &&
+      now - this.lastPopupWallMs < 14 &&
+      this.dom.hudPopups.lastElementChild
+    ) {
+      const lastEl = this.dom.hudPopups.lastElementChild;
+      const screenPt = this.renderer.worldToScreen(ev.x || 0, ev.y || 3, 0.35);
+      lastEl.style.left = `${Math.round(screenPt.x)}px`;
+      lastEl.style.top = `${Math.round(screenPt.y)}px`;
+      lastEl.innerHTML = '';
+      if (ev.combo && ev.combo >= 2) {
+        const comboEl = document.createElement('div');
+        comboEl.className = 'merge-popup-combo';
+        comboEl.textContent = `×${ev.combo}`;
+        lastEl.appendChild(comboEl);
+      }
+      const ptsEl = document.createElement('div');
+      ptsEl.className = 'merge-popup-pts';
+      ptsEl.textContent = ev.isBigWatermelon ? `🍉 ${ptsStr}` : ptsStr;
+      lastEl.appendChild(ptsEl);
       return;
     }
-    while (this.lastProcessedEventIdx < events.length) {
-      const ev = events[this.lastProcessedEventIdx++];
+    this.lastPopupWallMs = now;
+    while (this.dom.hudPopups.children.length >= 6) {
+      this.dom.hudPopups.removeChild(this.dom.hudPopups.firstChild);
+    }
+    const screenPt = this.renderer.worldToScreen(ev.x || 0, ev.y || 3, 0.35);
+    const el = document.createElement('div');
+    el.className = 'merge-popup';
+    el.style.left = `${Math.round(screenPt.x)}px`;
+    el.style.top = `${Math.round(screenPt.y)}px`;
+
+    if (ev.combo && ev.combo >= 2) {
+      const comboEl = document.createElement('div');
+      comboEl.className = 'merge-popup-combo';
+      comboEl.textContent = `×${ev.combo}`;
+      el.appendChild(comboEl);
+    }
+
+    const ptsEl = document.createElement('div');
+    ptsEl.className = 'merge-popup-pts';
+    ptsEl.textContent = ev.isBigWatermelon ? `🍉 ${ptsStr}` : ptsStr;
+    el.appendChild(ptsEl);
+
+    this.dom.hudPopups.appendChild(el);
+    window.setTimeout(() => {
+      if (el.parentNode === this.dom.hudPopups) {
+        this.dom.hudPopups.removeChild(el);
+      }
+    }, 1150);
+  }
+
+  _triggerStarPop(stars) {
+    const marks = [this.dom.starMark1, this.dom.starMark2, this.dom.starMark3];
+    for (let i = 0; i < stars && i < marks.length; i++) {
+      const el = marks[i];
+      if (!el) continue;
+      el.classList.remove('star-pop');
+      // Force reflow for animation restart
+      void el.offsetWidth;
+      el.classList.add('star-pop');
+    }
+  }
+
+  _syncAudioEvents(silent = false) {
+    const events = this.sim.consumeEvents();
+    if (silent) {
+      return;
+    }
+    for (const ev of events) {
       if (!ev) continue;
       switch (ev.type) {
         case 'drop':
@@ -361,9 +447,18 @@ class WatermelonApp {
           break;
         case 'merge':
           this.audio.playMerge(ev.toTier, ev.combo);
+          this._spawnMergePopup(ev);
+          break;
+        case 'big_watermelon_celebration':
+          this.audio.playBigWatermelonFanfare();
           break;
         case 'golden_watermelon_fountain':
           this.audio.playGoldenFountain();
+          this._spawnMergePopup(ev);
+          break;
+        case 'star_unlocked':
+          this.audio.playStarUnlock(ev.stars);
+          this._triggerStarPop(ev.stars);
           break;
         case 'tool_shake':
           this.audio.playTool('shake');
@@ -380,6 +475,9 @@ class WatermelonApp {
         default:
           break;
       }
+    }
+    if (this.sim.nearRimDanger) {
+      this.audio.playHeartbeat(this.sim.dangerProximity);
     }
     if (this.sim.maxOverflowTimer > 0.35) {
       this.audio.playWarning();
@@ -398,6 +496,9 @@ class WatermelonApp {
     this.uiScreen = opts.status === 'title' ? 'title' : 'playing';
     this.lastProcessedEventIdx = this.sim.events.length;
     this.accumulator = 0;
+    if (this.dom.hudPopups) {
+      this.dom.hudPopups.innerHTML = '';
+    }
     this.syncUI();
     this._renderCoalesced(0, true);
     return this.getState();
@@ -455,8 +556,10 @@ class WatermelonApp {
     const shouldDraw = forceDraw || !this.lastDrawWallMs || now - this.lastDrawWallMs >= 14;
     if (shouldDraw) {
       this.lastDrawWallMs = now;
+      this.renderer.render(this.sim.getState(), simDt, true);
+    } else {
+      this.pendingRenderDt = (this.pendingRenderDt || 0) + simDt;
     }
-    this.renderer.render(this.sim.getState(), simDt, shouldDraw);
   }
 
   syncUI() {
@@ -465,7 +568,7 @@ class WatermelonApp {
       this.uiScreen = 'podium';
     }
 
-    // Exclusively show only ONE screen overlay/HUD so visible button count is always <= 6
+    // Exclusively show only ONE screen overlay/HUD so visible button count is always <= 5
     if (this.dom.titleOverlay) {
       this.dom.titleOverlay.hidden = this.uiScreen !== 'title';
     }
@@ -481,6 +584,21 @@ class WatermelonApp {
     if (this.dom.hudBest) this.dom.hudBest.textContent = String(st.bestScore);
     if (this.dom.hudNextFruit && st.nextFruit) {
       this.dom.hudNextFruit.textContent = `下一颗: ${st.nextFruit.nameZh}`;
+    }
+
+    // Star Progress Bar (3000 / 8000 / 15000 classic)
+    if (this.dom.hudStarFill) {
+      const pct = Math.min(100, Math.max(0, Math.round((st.starProgress || 0) * 100)));
+      this.dom.hudStarFill.style.width = `${pct}%`;
+    }
+    const thresholds = st.starThresholds || [3000, 8000, 15000];
+    const marks = [this.dom.starMark1, this.dom.starMark2, this.dom.starMark3];
+    for (let i = 0; i < marks.length; i++) {
+      const el = marks[i];
+      if (!el) continue;
+      const earned = st.stars >= i + 1;
+      el.textContent = `${earned ? '⭐' : '★'}${thresholds[i] || ''}`;
+      el.classList.toggle('star-earned', earned);
     }
 
     // Mode & Timer Badges
@@ -500,11 +618,18 @@ class WatermelonApp {
       }
     }
 
+    // "危险!" Stamp when overflowTimer > 0.8s
+    if (this.dom.hudDangerStamp) {
+      this.dom.hudDangerStamp.hidden = !st.dangerStampActive;
+      this.dom.hudDangerStamp.classList.toggle('visible', Boolean(st.dangerStampActive));
+      this.dom.hudDangerStamp.textContent = '危险!';
+    }
+
     // Combo Banner
     if (this.dom.hudComboBanner) {
       if (st.comboCount >= 2 && st.comboTimer > 0) {
         this.dom.hudComboBanner.hidden = false;
-        this.dom.hudComboBanner.textContent = `🔥 连击 Combo x${st.comboCount}!`;
+        this.dom.hudComboBanner.textContent = `🔥 连击 Combo ×${st.comboCount}!`;
       } else {
         this.dom.hudComboBanner.hidden = true;
       }
@@ -544,16 +669,18 @@ class WatermelonApp {
       this.dom.btnTitleAudio.textContent = `${audioIcon} ${this.audio.muted ? '开启音乐' : '音乐开启'}`;
     }
 
-    // Mode Switch Button Label
-    if (this.dom.btnMode) {
-      this.dom.btnMode.innerHTML =
-        st.mode === 'classic'
-          ? '<span class="btn-icon">⚡</span><span class="btn-txt">冲刺</span>'
-          : '<span class="btn-icon">🍉</span><span class="btn-txt">经典</span>';
+    // Podium Mode Switch Button Label
+    if (this.dom.btnPodiumMode) {
+      this.dom.btnPodiumMode.textContent =
+        st.mode === 'classic' ? '⚡ 限时冲刺' : '🍉 经典合成';
     }
 
     // Podium Screen Content
     if (this.uiScreen === 'podium') {
+      if (this.dom.podiumNewRecord) {
+        this.dom.podiumNewRecord.hidden = !st.isNewRecord;
+        this.dom.podiumNewRecord.classList.toggle('visible', Boolean(st.isNewRecord));
+      }
       const starsStr =
         st.stars > 0 ? '⭐'.repeat(st.stars) + '☆'.repeat(3 - st.stars) : '☆☆☆ 再接再厉';
       if (this.dom.podiumStarsText) this.dom.podiumStarsText.textContent = starsStr;
@@ -584,12 +711,22 @@ class WatermelonApp {
       uiScreen: this.uiScreen,
       webgl2: this.renderer.webgl2Supported,
       audio: this.audio.getDiagnostics(),
+      jarScreenRect: this.renderer.getJarScreenRect(),
+      grapePixelDiameter: this.renderer.getGrapePixelDiameter(),
+      penguinHoldingTier:
+        typeof simState.nextFruitTier === 'number'
+          ? simState.nextFruitTier
+          : this.renderer.penguinNextTier,
+      activePopups: this.dom.hudPopups ? this.dom.hudPopups.children.length : 0,
+      lastPopupText: this.lastPopupText,
+      lastPopupComboText: this.lastPopupComboText,
       fruitTiers: FRUIT_TIERS.map((t) => ({
         tier: t.tier,
         id: t.id,
         nameZh: t.nameZh,
         nameEn: t.nameEn,
         radius: t.radius,
+        mass: t.mass,
         score: t.score,
       })),
       toolSpecs: TOOL_SPECS,

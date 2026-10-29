@@ -82,7 +82,7 @@ def t02_getstate_deep_clone_immutability(h: WatermelonTestHarness) -> None:
       })()"""
   )
   assert res["score"] == 0, res
-  assert res["shake"] == 2, res
+  assert res["shake"] == 1, res
   assert res["fruitsLen"] == 0, res
   assert res["currentTier"] != 10, res
 
@@ -523,24 +523,19 @@ def t25_overflow_rim_2_5s_triggers_podium(h: WatermelonTestHarness) -> None:
       """(() => {
         const api = window.__WATERMELON__;
         // Build a full alternating-tier stack; bottom pair of tier-9s merges into a
-        // Tier-10 Big Watermelon (watermelonsCreated=1 -> 3 stars) while top fruit overflows rimY=10.8
+        // Tier-10 Big Watermelon (watermelonsCreated=1 -> 3 stars) while top fruit overflows rimY=9.2
         api.startMatch({
           mode: 'classic',
           customFruits: [
-            { tier: 9, x: -2.4, y: 1.86, graceTimer: 0 },
-            { tier: 9, x: -2.0, y: 1.86, graceTimer: 0 },
-            { tier: 9, x: 2.3, y: 1.86, graceTimer: 0 },
-            { tier: 8, x: 0.0, y: 4.5, graceTimer: 0 },
-            { tier: 9, x: -2.4, y: 6.2, graceTimer: 0 },
-            { tier: 10, x: 2.2, y: 6.2, graceTimer: 0 },
-            { tier: 7, x: -0.1, y: 8.1, graceTimer: 0 },
-            { tier: 8, x: -2.5, y: 9.8, graceTimer: 0 },
-            { tier: 9, x: 2.1, y: 10.2, graceTimer: 0 },
-            { tier: 10, x: -0.2, y: 11.4, graceTimer: 0 },
+            { tier: 9, x: -0.4, y: 2.25, graceTimer: 0 },
+            { tier: 9, x: 0.4, y: 2.25, graceTimer: 0 },
+            { tier: 8, x: -1.2, y: 5.5, graceTimer: 0 },
+            { tier: 9, x: 0.8, y: 6.2, graceTimer: 0 },
+            { tier: 10, x: 0.0, y: 9.6, graceTimer: 0, overflowTimer: 0.25 },
           ],
         });
-        const stMid = api.stepFrames(90); // 1.5s (< 2.5s limit)
-        const stEnd = api.stepFrames(80); // Total > 2.5s
+        const stMid = api.stepFrames(60); // ~1.25s (< 2.0s limit)
+        const stEnd = api.stepFrames(80); // Total > 2.0s
         return {
           midStatus: stMid.status,
           midOverflow: stMid.maxOverflowTimer,
@@ -553,7 +548,7 @@ def t25_overflow_rim_2_5s_triggers_podium(h: WatermelonTestHarness) -> None:
         };
       })()"""
   )
-  assert res["midStatus"] == "playing" and res["midOverflow"] > 1.0, res
+  assert res["midStatus"] == "playing" and res["midOverflow"] > 0.6, res
   assert res["endStatus"] == "podium" and res["endReason"] == "overflow", res
   assert res["uiScreen"] == "podium", res
   assert res["watermelonsCreated"] >= 1, res
@@ -569,7 +564,7 @@ def t26_podium_star_tiers_0_to_3(h: WatermelonTestHarness) -> None:
         api.startMatch({
           mode: 'classic',
           customFruits: [
-            { tier: 8, x: 0, y: 11.2, graceTimer: 0, overflowTimer: 2.48 },
+            { tier: 8, x: 0, y: 9.8, graceTimer: 0, overflowTimer: 1.98 },
           ],
         });
         const st0 = api.stepFrames(5);
@@ -578,13 +573,13 @@ def t26_podium_star_tiers_0_to_3(h: WatermelonTestHarness) -> None:
         api.startMatch({
           mode: 'classic',
           customFruits: [
-            { tier: 8, x: -2.9, y: 1.62, graceTimer: 0 },
-            { tier: 8, x: -2.7, y: 1.62, graceTimer: 0 },
-            { tier: 8, x: 2.7, y: 1.62, graceTimer: 0 },
-            { tier: 8, x: 2.9, y: 1.62, graceTimer: 0 },
-            { tier: 7, x: -0.1, y: 5.0, graceTimer: 0 },
-            { tier: 7, x: 0.1, y: 5.0, graceTimer: 0 },
-            { tier: 6, x: 0, y: 11.4, graceTimer: 0, overflowTimer: 2.48 },
+            { tier: 8, x: -1.2, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: -1.0, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: 1.0, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: 1.2, y: 1.90, graceTimer: 0 },
+            { tier: 7, x: -0.1, y: 5.2, graceTimer: 0 },
+            { tier: 7, x: 0.1, y: 5.2, graceTimer: 0 },
+            { tier: 6, x: 0, y: 9.8, graceTimer: 0, overflowTimer: 1.98 },
           ],
         });
         const st1 = api.stepFrames(4);
@@ -593,19 +588,19 @@ def t26_podium_star_tiers_0_to_3(h: WatermelonTestHarness) -> None:
         api.startMatch({
           mode: 'classic',
           customFruits: [
-            { tier: 8, x: -2.9, y: 1.62, graceTimer: 0 },
-            { tier: 8, x: -2.7, y: 1.62, graceTimer: 0 },
-            { tier: 8, x: 2.7, y: 1.62, graceTimer: 0 },
-            { tier: 8, x: 2.9, y: 1.62, graceTimer: 0 },
+            { tier: 8, x: -1.2, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: -1.0, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: 1.0, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: 1.2, y: 1.90, graceTimer: 0 },
             { tier: 8, x: -0.1, y: 4.8, graceTimer: 0 },
             { tier: 8, x: 0.1, y: 4.8, graceTimer: 0 },
-            { tier: 8, x: -2.8, y: 8.2, graceTimer: 0 },
-            { tier: 8, x: -2.6, y: 8.2, graceTimer: 0 },
-            { tier: 8, x: 2.6, y: 8.2, graceTimer: 0 },
-            { tier: 8, x: 2.8, y: 8.2, graceTimer: 0 },
-            { tier: 7, x: -0.1, y: 8.2, graceTimer: 0 },
-            { tier: 7, x: 0.1, y: 8.2, graceTimer: 0 },
-            { tier: 6, x: 0.0, y: 11.4, graceTimer: 0, overflowTimer: 2.48 },
+            { tier: 8, x: -1.2, y: 7.2, graceTimer: 0 },
+            { tier: 8, x: -1.0, y: 7.2, graceTimer: 0 },
+            { tier: 8, x: 1.0, y: 7.2, graceTimer: 0 },
+            { tier: 8, x: 1.2, y: 7.2, graceTimer: 0 },
+            { tier: 7, x: -0.1, y: 7.2, graceTimer: 0 },
+            { tier: 7, x: 0.1, y: 7.2, graceTimer: 0 },
+            { tier: 6, x: 0.0, y: 9.8, graceTimer: 0, overflowTimer: 1.98 },
           ],
         });
         const st2 = api.stepFrames(5);
@@ -614,9 +609,9 @@ def t26_podium_star_tiers_0_to_3(h: WatermelonTestHarness) -> None:
         api.startMatch({
           mode: 'classic',
           customFruits: [
-            { tier: 9, x: -0.2, y: 1.86, graceTimer: 0 },
-            { tier: 9, x: 0.2, y: 1.86, graceTimer: 0 },
-            { tier: 8, x: 0, y: 11.4, graceTimer: 0, overflowTimer: 2.48 },
+            { tier: 9, x: -0.2, y: 2.25, graceTimer: 0 },
+            { tier: 9, x: 0.2, y: 2.25, graceTimer: 0 },
+            { tier: 8, x: 0, y: 9.8, graceTimer: 0, overflowTimer: 1.98 },
           ],
         });
         const st3 = api.stepFrames(5);
@@ -704,21 +699,70 @@ def _audit_viewport(
   assert dims["innerWidth"] == width and dims["innerHeight"] == height, dims
 
   # Check Title, Playing, and Podium states on this viewport
-  for screen_cmd in (
+  for idx, screen_cmd in enumerate((
       "window.__WATERMELON__.openTitle()",
       "window.__WATERMELON__.startMatch({ mode: 'classic' })",
-      "window.__WATERMELON__.startMatch({ mode: 'classic', customFruits: [{ tier: 8, x: 0, y: 11.2, graceTimer: 0, overflowTimer: 2.5 }] }); window.__WATERMELON__.stepFrames(2)",
-  ):
+      "window.__WATERMELON__.startMatch({ mode: 'classic', customFruits: [{ tier: 8, x: 0, y: 9.8, graceTimer: 0, overflowTimer: 2.0 }] }); window.__WATERMELON__.stepFrames(2)",
+  )):
     h.eval_js(screen_cmd)
     audit = h.audit_viewport_and_hud()
     assert audit["scrollWidth"] <= width, f"Horizontal overflow on {width}x{height}: {audit}"
     assert audit["scrollHeight"] <= height, f"Vertical overflow on {width}x{height}: {audit}"
-    assert 1 <= audit["controlCount"] <= 6, f"Expected 1..6 HUD controls on {width}x{height}: {audit}"
+    assert 1 <= audit["controlCount"] <= 5, f"Expected 1..5 HUD controls on {width}x{height}: {audit}"
     assert len(audit["overlaps"]) == 0, f"Overlapping controls on {width}x{height}: {audit}"
     for ctrl in audit["controls"]:
       assert ctrl["width"] >= 68 and ctrl["height"] >= 68, (
           f"Control smaller than 68x68px on {width}x{height}: {ctrl}"
       )
+    if idx == 1:
+      jar_audit = h.eval_js(
+          """(() => {
+            const st = window.__WATERMELON__.getState();
+            const jr = st.jarScreenRect;
+            const hudOverlaps = [];
+            const selectors = ['.hud-score-card', '.hud-top-actions', '.hud-bottom-dock'];
+            for (const sel of selectors) {
+              const el = document.querySelector(sel);
+              if (!el) continue;
+              const r = el.getBoundingClientRect();
+              const ox = Math.max(0, Math.min(r.right, jr.right) - Math.max(r.left, jr.left));
+              const oy = Math.max(0, Math.min(r.bottom, jr.bottom) - Math.max(r.top, jr.top));
+              if (ox > 2 && oy > 2) {
+                hudOverlaps.push({ selector: sel, ox: Math.round(ox), oy: Math.round(oy), r, jr });
+              }
+            }
+            return {
+              jarRect: jr,
+              grapePixelDiameter: st.grapePixelDiameter,
+              hudOverlaps,
+            };
+          })()"""
+      )
+      assert jar_audit["jarRect"]["fullyVisible"] is True, (width, height, jar_audit)
+      assert jar_audit["jarRect"]["heldFruitTopPx"] >= 6.0, (
+          f"Held fruit top {jar_audit['jarRect']['heldFruitTopPx']}px < 6px on {width}x{height}: {jar_audit}"
+      )
+      assert jar_audit["jarRect"]["jarFloorBottomMarginPx"] >= 4.0, (
+          f"Jar floor margin {jar_audit['jarRect']['jarFloorBottomMarginPx']}px < 4px on {width}x{height}: {jar_audit}"
+      )
+      if width >= height:
+        assert 0.78 <= jar_audit["jarRect"]["interiorHeightRatio"] <= 0.85, (
+            f"Expected landscape jar interior height ratio ~80-84% on {width}x{height}: {jar_audit}"
+        )
+        if height <= 440:
+          assert jar_audit["jarRect"]["evolutionWheelVisible"] is False, (
+              f"Evolution wheel must be hidden at {width}x{height}: {jar_audit}"
+          )
+        else:
+          assert jar_audit["jarRect"]["evolutionWheelVisible"] is True, jar_audit
+          assert jar_audit["jarRect"]["evolutionWheelLeftPx"] > jar_audit["jarRect"]["jarOuterRightPx"] + 6.0, (
+              f"Evolution wheel overlaps jar right wall on {width}x{height}: {jar_audit}"
+          )
+      assert len(jar_audit["hudOverlaps"]) == 0, (
+          f"HUD overlaps jar interior on {width}x{height}: {jar_audit}"
+      )
+      if width == 1280 and height == 800:
+        assert jar_audit["grapePixelDiameter"] >= 48.0, jar_audit
 
 
 def t30_viewport_1280x800_desktop_landscape(h: WatermelonTestHarness) -> None:
@@ -784,15 +828,14 @@ def t35_visual_render_and_gbrowser_check(h: WatermelonTestHarness) -> None:
           seed: 20261029,
           forcedQueue: [4, 3],
           customFruits: [
-            { tier: 9, x: -1.75, y: 1.86 },
-            { tier: 9, x: -1.55, y: 1.86 },
-            { tier: 9, x: 2.15, y: 1.86 },
-            { tier: 8, x: -2.45, y: 5.55 },
-            { tier: 7, x: 0.35, y: 3.45 },
-            { tier: 6, x: 2.65, y: 4.95 },
+            { tier: 9, x: -0.95, y: 2.25 },
+            { tier: 9, x: 0.95, y: 2.25 },
+            { tier: 8, x: -1.25, y: 5.20 },
+            { tier: 7, x: 0.35, y: 3.85 },
+            { tier: 6, x: 1.65, y: 4.95 },
             { tier: 5, x: -0.65, y: 5.85 },
-            { tier: 4, x: 1.15, y: 5.65 },
-            { tier: 3, x: -1.95, y: 7.75 },
+            { tier: 4, x: 1.15, y: 6.65 },
+            { tier: 3, x: -1.45, y: 7.45 },
             { tier: 2, x: 0.15, y: 7.35 },
           ],
         });
@@ -805,7 +848,8 @@ def t35_visual_render_and_gbrowser_check(h: WatermelonTestHarness) -> None:
   assert stats["width"] == 1280 and stats["height"] == 800, stats
   assert stats["std_dev"] > 0.08, f"Expected rich 3D visual variance, got {stats}"
 
-  readme_jpg = h.root_dir / "screenshot.jpg"
+  readme_jpg = Path("/tmp/qq_watermelon_3d/screenshot.jpg")
+  readme_jpg.parent.mkdir(parents=True, exist_ok=True)
   subprocess.run(
       [
           MAGICK_BIN,
@@ -924,6 +968,386 @@ def t39_four_mandarins_post_merge_cooldown_shows_intermediate_lemons(
   assert res["frame12Tiers"] == [4], res
 
 
+def t40_fun_overhaul_jar_proportions_radii_masses_and_spawn_weights(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(() => {
+        const api = window.__WATERMELON__;
+        const stClassic = api.startMatch({ mode: 'classic', seed: 901 });
+        const stRush = api.startMatch({ mode: 'rush', seed: 902 });
+        return {
+          jar: stClassic.jar,
+          radii: stClassic.fruitTiers.map(t => t.radius),
+          masses: stClassic.fruitTiers.map(t => t.mass),
+          classicTools: stClassic.tools,
+          rushTools: stRush.tools,
+        };
+      })()"""
+  )
+  assert res["jar"]["width"] == 6.4 and res["jar"]["halfWidth"] == 3.2, res
+  assert res["jar"]["rimY"] == 9.2 and res["jar"]["overflowLimitSec"] == 2.0, res
+  expected_radii = [0.38, 0.50, 0.64, 0.78, 0.96, 1.16, 1.38, 1.62, 1.90, 2.25, 2.70]
+  assert res["radii"] == expected_radii, res
+  for i in range(1, len(res["masses"])):
+    ratio_r2 = (expected_radii[i] / expected_radii[0]) ** 2
+    assert abs(res["masses"][i] - ratio_r2) < 0.15, (i, res["masses"][i], ratio_r2)
+  assert res["classicTools"] == {"shake": 1, "hammer": 1, "rainbow": 1}, res
+  assert res["rushTools"] == {"shake": 2, "hammer": 2, "rainbow": 2}, res
+
+
+def t41_deterministic_seed_sweep_random_dropper_and_greedy_aimer(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(() => {
+        const api = window.__WATERMELON__;
+        const seeds = [101, 202, 303, 404, 505, 606, 707, 808];
+        const randomRuns = [];
+        for (const seed of seeds) {
+          let s = seed ^ 0x9E3779B9;
+          const rand = () => {
+            s = (s + 0x6D2B79F5) | 0;
+            let t = Math.imul(s ^ (s >>> 15), 1 | s);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+          api.startMatch({ mode: 'classic', seed });
+          let drops = 0;
+          let st = api.getState();
+          while (st.status === 'playing' && drops < 100) {
+            const r = st.currentFruit ? st.currentFruit.radius : 0.5;
+            const maxX = 3.2 - r;
+            const aimX = (rand() * 2 - 1) * maxX;
+            api.setAimX(aimX);
+            api.dropFruit();
+            drops += 1;
+            st = api.stepFrames(30);
+          }
+          randomRuns.push({
+            seed,
+            drops,
+            status: st.status,
+            merges: st.mergeCount,
+            combo3Plus: st.comboThreePlusCount,
+            combo3Pct: st.mergeCount > 0 ? (st.comboThreePlusCount / st.mergeCount) * 100 : 0,
+          });
+        }
+
+        // Verify greedy aimer inside E2E budget
+        const greedyRuns = [];
+        for (const seed of [101]) {
+          api.startMatch({ mode: 'classic', seed });
+          let drops = 0;
+          let peachSec = null;
+          let st = api.getState();
+          while (st.status === 'playing' && st.elapsedSec < 122.0 && drops < 250) {
+            const cur = st.currentFruit;
+            if (!cur) {
+              st = api.stepFrames(5);
+              continue;
+            }
+            const r = cur.radius;
+            const maxX = 3.2 - r;
+            let targetX = null;
+            const same = st.fruits.filter(f => f.tier === cur.tier);
+            if (same.length > 0) {
+              same.sort((a, b) => b.y - a.y);
+              targetX = same[0].x + (same[0].x >= 0 ? -0.04 : 0.04);
+            } else {
+              const plus1 = st.fruits.filter(f => f.tier === cur.tier + 1);
+              if (plus1.length > 0) {
+                plus1.sort((a, b) => b.y - a.y);
+                targetX = plus1[0].x + (plus1[0].x >= 0 ? -0.15 : 0.15);
+              } else {
+                const slots = [-2.5, -1.3, 0.0, 1.3, 2.5];
+                targetX = slots[Math.min(4, cur.tier)] + ((drops % 3) - 1) * 0.08;
+              }
+            }
+            api.setAimX(Math.max(-maxX, Math.min(maxX, targetX)));
+            api.dropFruit();
+            drops += 1;
+            st = api.stepFrames(30);
+            if (peachSec === null && st.highestTier >= 6) {
+              peachSec = st.elapsedSec;
+            }
+          }
+          greedyRuns.push({
+            seed,
+            status: st.status,
+            elapsedSec: st.elapsedSec,
+            peachSec,
+            highestTier: st.highestTier,
+          });
+        }
+        return { randomRuns, greedyRuns };
+      })()"""
+  )
+  for r in res["randomRuns"]:
+    assert r["status"] == "podium", r
+    assert 40 <= r["drops"] <= 70, f"Random dropper drops out of 40..70 bound: {r}"
+    assert r["combo3Pct"] < 10.0, f"Random dropper combo3+ >= 10%: {r}"
+  for g in res["greedyRuns"]:
+    assert g["peachSec"] is not None and 20.0 <= g["peachSec"] <= 60.0, g
+    assert g["elapsedSec"] >= 120.0, g
+
+
+def t42_combo_window_1s_pitch_escalation_and_merge_popups(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(() => {
+        const api = window.__WATERMELON__;
+        api.startMatch({
+          mode: 'classic',
+          seed: 701,
+          customFruits: [
+            { tier: 1, x: -0.15, y: 0.50 },
+            { tier: 1, x: 0.15, y: 0.50 },
+            { tier: 2, x: 0.05, y: 1.15 },
+            { tier: 3, x: 0.05, y: 1.95 },
+          ],
+        });
+        const st1 = api.stepFrames(25);
+        const popupsText = Array.from(document.querySelectorAll('#hud-popups .merge-popup'))
+          .map(el => el.textContent.trim());
+        // Step > 1.0s (65 frames) with no merges -> comboCount must reset to 0
+        const stAfterWindow = api.stepFrames(65);
+        return {
+          comboWindowSec: st1.comboWindowSec,
+          maxCombo: st1.maxCombo,
+          comboResetAfter1s: stAfterWindow.comboCount,
+          lastMergeNote: st1.audio.lastMergeNote,
+          lastMergeHz: st1.audio.lastMergeHz,
+          popupsText,
+        };
+      })()"""
+  )
+  assert res["comboWindowSec"] == 1.0, res
+  assert res["maxCombo"] >= 2, res
+  assert res["comboResetAfter1s"] == 0, res
+  assert res["lastMergeNote"] in ("C5", "E5", "G5", "C6"), res
+  assert res["lastMergeHz"] > 300, res
+  assert any("+" in t for t in res["popupsText"]), res
+
+
+def t43_merge_squash_particles_screenshake_and_big_watermelon_slowmo(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(() => {
+        const api = window.__WATERMELON__;
+        // 1. Low-tier merge (0+0 -> 1): screenShake === 0, wobbleTimer === 0.18, particleCount === 14
+        api.startMatch({
+          mode: 'classic',
+          customFruits: [
+            { tier: 0, x: -0.1, y: 0.38 },
+            { tier: 0, x: 0.1, y: 0.38 },
+          ],
+        });
+        const stLow = api.stepFrames(1);
+        const evLow = stLow.events.find(e => e.type === 'merge');
+
+        // 2. Big Watermelon merge (9+9 -> 10): slowMoTimer = 0.6s, timeScale = 0.25, screenShake = 0.35
+        api.startMatch({
+          mode: 'classic',
+          customFruits: [
+            { tier: 9, x: -0.4, y: 2.25 },
+            { tier: 9, x: 0.4, y: 2.25 },
+          ],
+        });
+        const stBig = api.stepFrames(1);
+        const evBig = stBig.events.find(e => e.type === 'merge');
+        return {
+          lowShake: stLow.screenShake,
+          lowSquashX: evLow ? evLow.squashX : 0,
+          lowStretchY: evLow ? evLow.stretchY : 0,
+          lowParticles: evLow ? evLow.particleCount : 0,
+          bigSlowMoTimer: stBig.slowMoTimer,
+          bigTimeScale: stBig.timeScale,
+          bigShake: evBig ? evBig.screenShake : 0,
+          fanfareCount: stBig.audio.fanfareCount,
+        };
+      })()"""
+  )
+  assert res["lowShake"] == 0, res
+  assert res["lowSquashX"] == 1.25 and res["lowStretchY"] == 0.80, res
+  assert res["lowParticles"] == 14, res
+  assert res["bigSlowMoTimer"] > 0.5 and res["bigTimeScale"] == 0.25, res
+  assert res["bigShake"] == 0.35, res
+  assert res["fanfareCount"] >= 1, res
+
+
+def t44_danger_tension_rim_proximity_heartbeat_and_danger_stamp(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(() => {
+        const api = window.__WATERMELON__;
+        // Place a settled tier-8 fruit (r=1.90) with top at y+r = 6.2 + 1.90 = 8.10 (within 1 radius of rimY=9.2)
+        api.startMatch({
+          mode: 'classic',
+          customFruits: [
+            { tier: 8, x: 0.0, y: 6.2, graceTimer: 0 },
+          ],
+        });
+        const stNear = api.stepFrames(5);
+
+        // Now place an overflowing fruit with overflowTimer = 0.85 (> 0.8s threshold)
+        api.startMatch({
+          mode: 'classic',
+          customFruits: [
+            { tier: 8, x: 0.0, y: 9.6, graceTimer: 0, overflowTimer: 0.85 },
+          ],
+        });
+        const stDanger = api.stepFrames(2);
+        const stampEl = document.getElementById('hud-danger-stamp');
+        return {
+          nearRimDanger: stNear.nearRimDanger,
+          dangerProximity: stNear.dangerProximity,
+          dangerStampActive: stDanger.dangerStampActive,
+          stampVisible: Boolean(stampEl && stampEl.classList.contains('visible')),
+          stampText: stampEl ? stampEl.textContent.trim() : '',
+          heartbeatCount: stDanger.audio.heartbeatCount,
+        };
+      })()"""
+  )
+  assert res["nearRimDanger"] is True and res["dangerProximity"] > 0, res
+  assert res["dangerStampActive"] is True, res
+  assert res["stampVisible"] is True and "危险" in res["stampText"], res
+  assert res["heartbeatCount"] >= 1, res
+
+
+def t45_star_progress_bar_penguin_3d_next_fruit_and_evolution_highlight(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(() => {
+        const api = window.__WATERMELON__;
+        api.startMatch({
+          mode: 'classic',
+          forcedQueue: [2, 4, 1],
+          customFruits: [
+            { tier: 8, x: -0.3, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: 0.3, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: -1.1, y: 5.20, graceTimer: 0 },
+            { tier: 8, x: 1.1, y: 5.20, graceTimer: 0 },
+          ],
+        });
+        const stMerge = api.stepFrames(10);
+        const starFillWidth = document.getElementById('hud-star-fill').style.width;
+
+        // Finish match with new record to verify podium new-record banner
+        api.startMatch({
+          mode: 'classic',
+          resetBestScore: true,
+          customFruits: [
+            { tier: 8, x: -0.2, y: 1.90, graceTimer: 0 },
+            { tier: 8, x: 0.2, y: 1.90, graceTimer: 0 },
+            { tier: 7, x: 0.0, y: 9.8, graceTimer: 0, overflowTimer: 1.98 },
+          ],
+        });
+        const stEnd = api.stepFrames(5);
+        const newRecVisible = document.getElementById('podium-new-record').classList.contains('visible');
+        return {
+          nextTier: stMerge.nextFruitTier,
+          penguinHoldingTier: stMerge.penguinHoldingTier,
+          highlightedTier: stMerge.highlightedTier,
+          highlightTimer: stMerge.highlightTimer,
+          starProgress: stMerge.starProgress,
+          starFillWidth,
+          isNewRecord: stEnd.isNewRecord,
+          newRecVisible,
+        };
+      })()"""
+  )
+  assert res["penguinHoldingTier"] == res["nextTier"], res
+  assert res["highlightedTier"] >= 8 and res["highlightTimer"] > 0, res
+  assert res["starProgress"] > 0 and res["starFillWidth"] != "0%", res
+  assert res["isNewRecord"] is True and res["newRecVisible"] is True, res
+
+
+def t46_hall_progress_localstorage_contract(h: WatermelonTestHarness) -> None:
+  res = h.eval_js(
+      """(() => {
+        localStorage.setItem(
+          'qq_hall_progress',
+          JSON.stringify({ aeroplane: { plays: 3, best: 100, stars: 2, last: '2026-10-29T00:00:00.000Z' } })
+        );
+        const api = window.__WATERMELON__;
+        api.startMatch({
+          mode: 'classic',
+          customFruits: [
+            { tier: 9, x: -0.2, y: 2.25, graceTimer: 0 },
+            { tier: 9, x: 0.2, y: 2.25, graceTimer: 0 },
+            { tier: 8, x: 0, y: 9.8, graceTimer: 0, overflowTimer: 1.98 },
+          ],
+        });
+        api.stepFrames(5);
+        return JSON.parse(localStorage.getItem('qq_hall_progress') || '{}');
+      })()"""
+  )
+  assert "aeroplane" in res and res["aeroplane"]["plays"] == 3, res
+  assert "watermelon" in res, res
+  wm = res["watermelon"]
+  assert wm["plays"] >= 1 and wm["best"] >= 2000 and wm["stars"] == 3, wm
+  assert isinstance(wm["last"], str) and "T" in wm["last"], wm
+
+
+def t47_director_v2_framing_evolution_wheel_star_bar_and_difficulty_params(
+    h: WatermelonTestHarness,
+) -> None:
+  res = h.eval_js(
+      """(async () => {
+        const cfg = await import('./src/config.js');
+        const api = window.__WATERMELON__;
+        api.startMatch({
+          mode: 'classic',
+          seed: 555,
+          customFruits: [
+            { tier: 2, x: -0.1, y: 0.64 },
+            { tier: 2, x: 0.1, y: 0.64 },
+          ],
+        });
+        const stMerge = api.stepFrames(1);
+        const evMerge = stMerge.events.find(e => e.type === 'merge');
+        const starTrackRect = document.querySelector('.star-bar-track').getBoundingClientRect();
+        const starMilestoneFontPx = parseFloat(
+          window.getComputedStyle(document.getElementById('star-mark-1')).fontSize
+        );
+        const scoreSubFontPx = parseFloat(
+          window.getComputedStyle(document.querySelector('.score-sub')).fontSize
+        );
+        return {
+          spawnWeights: Array.from(cfg.SPAWN_WEIGHTS),
+          mergeCooldownSec: cfg.MERGE_COOLDOWN_SEC,
+          mergeTouchMargin: cfg.JAR_CONFIG.mergeTouchMargin,
+          mergeRandomImpulseX: cfg.JAR_CONFIG.mergeRandomImpulseX,
+          impulseX: evMerge ? evMerge.impulseX : 0,
+          starTrackHeightPx: starTrackRect.height,
+          starMilestoneFontPx,
+          scoreSubFontPx,
+          jarScreenRect: stMerge.jarScreenRect,
+        };
+      })()"""
+  )
+  assert res["spawnWeights"] == [0.20, 0.20, 0.20, 0.20, 0.20], res
+  assert res["mergeCooldownSec"] == 0.16, res
+  assert res["mergeTouchMargin"] == 0.004, res
+  assert res["mergeRandomImpulseX"] == 0.6, res
+  assert isinstance(res["impulseX"], (int, float)) and abs(res["impulseX"]) <= 0.6, res
+  assert res["starTrackHeightPx"] >= 11.0, res
+  assert res["starMilestoneFontPx"] >= 14.0, res
+  assert res["scoreSubFontPx"] >= 13.0, res
+  assert res["jarScreenRect"]["heldFruitTopPx"] >= 6.0, res
+  assert res["jarScreenRect"]["jarFloorBottomMarginPx"] >= 4.0, res
+  assert res["jarScreenRect"]["evolutionWheelVisible"] is True, res
+  assert (
+      res["jarScreenRect"]["evolutionWheelLeftPx"]
+      > res["jarScreenRect"]["jarOuterRightPx"] + 6.0
+  ), res
+
+
 ALL_TESTS: list[tuple[str, Callable[[WatermelonTestHarness], None]]] = [
     ("T01_webgl2_and_frozen_seam", t01_webgl2_and_frozen_seam),
     ("T02_getstate_deep_clone_immutability", t02_getstate_deep_clone_immutability),
@@ -964,6 +1388,14 @@ ALL_TESTS: list[tuple[str, Callable[[WatermelonTestHarness], None]]] = [
     ("T37_seam_no_drop_override_no_initial_score", t37_seam_no_drop_override_no_initial_score),
     ("T38_rainbow_at_tier_9_preserves_charges", t38_rainbow_at_tier_9_preserves_charges),
     ("T39_four_mandarins_post_merge_cooldown", t39_four_mandarins_post_merge_cooldown_shows_intermediate_lemons),
+    ("T40_fun_overhaul_jar_proportions_radii_masses_and_spawn_weights", t40_fun_overhaul_jar_proportions_radii_masses_and_spawn_weights),
+    ("T41_deterministic_seed_sweep_random_dropper_and_greedy_aimer", t41_deterministic_seed_sweep_random_dropper_and_greedy_aimer),
+    ("T42_combo_window_1s_pitch_escalation_and_merge_popups", t42_combo_window_1s_pitch_escalation_and_merge_popups),
+    ("T43_merge_squash_particles_screenshake_and_big_watermelon_slowmo", t43_merge_squash_particles_screenshake_and_big_watermelon_slowmo),
+    ("T44_danger_tension_rim_proximity_heartbeat_and_danger_stamp", t44_danger_tension_rim_proximity_heartbeat_and_danger_stamp),
+    ("T45_star_progress_bar_penguin_3d_next_fruit_and_evolution_highlight", t45_star_progress_bar_penguin_3d_next_fruit_and_evolution_highlight),
+    ("T46_hall_progress_localstorage_contract", t46_hall_progress_localstorage_contract),
+    ("T47_director_v2_framing_evolution_wheel_star_bar_and_difficulty_params", t47_director_v2_framing_evolution_wheel_star_bar_and_difficulty_params),
 ]
 
 

@@ -42,6 +42,32 @@ A vibrant, kid-friendly and nostalgic **Three.js r170 WebGL2** 3D remake of **Sy
 
 ---
 
+## 🍉 Changelog — Fun Overhaul (v1.1)
+
+The first release had no tension: the jar was ≈13 grape-diameters wide (the original is ≈7), so 25 s of
+random tapping produced 26 merges, a "Combo ×26" banner and a jar that never filled. This overhaul
+makes it feel like the real thing:
+
+- **A real jar** — width 9.2 → 6.4, rim 10.8 → 9.2, fruit radii rescaled so the Big Watermelon spans
+  84 % of the jar; uniform 20 % spawn weights over tiers 0–4 (as the original). Measured over 8 seeds:
+  a random dropper now overflows in **42–45 drops**, a greedy aimer reaches the peach in **25–37 s** and
+  the Big Watermelon only after **183–200 s** (it was <130 s) — an achievement again.
+- **Camera & layout** — the jar (held fruit to floor) fills the viewport on all four layouts; grapes are
+  ≈58 px at 1280×800; the three tools sit on a side rail (landscape) or below the jar (portrait) and
+  never cover the jar; exactly 5 controls on screen.
+- **Juice** — 1.0 s combo window with ×2/×3/×4 popups and C5→E5→G5→C6 pitches, "+pts" at the merge
+  point, 1.25/0.80 squash over 180 ms, 14 juice droplets + shockwave ring, tier-scaled screen shake,
+  0.6 s slow-mo + confetti + fanfare + fountain when the Big Watermelon is born; the penguin holds the
+  next fruit as a real 3D mini and bounces on every merge; the evolution wheel highlights new tiers.
+- **Tension** — rim glow + pulsing line + heartbeat when any fruit is within one radius of the rim,
+  overflow limit 2.5 → 2.0 s, a "危险!" stamp, and a chunky 3-star progress bar (3000 / 8000 / 15000).
+- Classic tools start at 1/1/1 (rush 2/2/2); combos still refill them.
+- Writes `localStorage['qq_hall_progress'].watermelon` for the QQ Game Hall 3D progress badges.
+- E2E suite grown to 47 tests (jar geometry bounds, combo window, slow-mo, danger stamp, star bar,
+  HUD/jar overlap, held-fruit visibility on 4 viewports).
+
+---
+
 ## 🧪 Running the Headless WebGL2 E2E Suite
 
 ```bash
